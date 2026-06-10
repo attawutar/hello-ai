@@ -19,41 +19,112 @@ function clearJoinCodeFromURL() {
   window.history.replaceState({}, '', url.toString())
 }
 
+// ─── Persistent state hook ────────────────────────────────────────────────────
+function useLocalStorage(key, defaultValue) {
+  const [value, setValue] = useState(() => {
+    try {
+      const stored = localStorage.getItem(key)
+      return stored !== null ? JSON.parse(stored) : defaultValue
+    } catch { return defaultValue }
+  })
+  useEffect(() => {
+    try { localStorage.setItem(key, JSON.stringify(value)) } catch {}
+  }, [key, value])
+  return [value, setValue]
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 const GROUP_COLORS = [
-  { bg: 'from-cyan-500/20 to-blue-600/20',    border: 'border-cyan-500/40',   label: 'text-cyan-300',   badge: 'from-cyan-500 to-blue-600',   glow: 'shadow-cyan-500/50'   },
-  { bg: 'from-purple-500/20 to-indigo-600/20', border: 'border-purple-500/40', label: 'text-purple-300', badge: 'from-purple-500 to-indigo-600', glow: 'shadow-purple-500/50' },
-  { bg: 'from-emerald-500/20 to-teal-600/20',  border: 'border-emerald-500/40',label: 'text-emerald-300',badge: 'from-emerald-500 to-teal-600',  glow: 'shadow-emerald-500/50'},
-  { bg: 'from-orange-500/20 to-red-600/20',    border: 'border-orange-500/40', label: 'text-orange-300', badge: 'from-orange-500 to-red-600',   glow: 'shadow-orange-500/50' },
-  { bg: 'from-pink-500/20 to-rose-600/20',     border: 'border-pink-500/40',   label: 'text-pink-300',   badge: 'from-pink-500 to-rose-600',   glow: 'shadow-pink-500/50'   },
-  { bg: 'from-yellow-500/20 to-amber-600/20',  border: 'border-yellow-500/40', label: 'text-yellow-300', badge: 'from-yellow-500 to-amber-600', glow: 'shadow-yellow-500/50' },
+  { bg:'from-cyan-500/20 to-blue-600/20',    border:'border-cyan-500/40',   label:'text-cyan-300',   badge:'from-cyan-500 to-blue-600',   glow:'shadow-cyan-500/50'   },
+  { bg:'from-purple-500/20 to-indigo-600/20',border:'border-purple-500/40', label:'text-purple-300', badge:'from-purple-500 to-indigo-600',glow:'shadow-purple-500/50' },
+  { bg:'from-emerald-500/20 to-teal-600/20', border:'border-emerald-500/40',label:'text-emerald-300',badge:'from-emerald-500 to-teal-600', glow:'shadow-emerald-500/50'},
+  { bg:'from-orange-500/20 to-red-600/20',   border:'border-orange-500/40', label:'text-orange-300', badge:'from-orange-500 to-red-600',  glow:'shadow-orange-500/50' },
+  { bg:'from-pink-500/20 to-rose-600/20',    border:'border-pink-500/40',   label:'text-pink-300',   badge:'from-pink-500 to-rose-600',  glow:'shadow-pink-500/50'   },
+  { bg:'from-yellow-500/20 to-amber-600/20', border:'border-yellow-500/40', label:'text-yellow-300', badge:'from-yellow-500 to-amber-600',glow:'shadow-yellow-500/50' },
 ]
 const AVATAR_COLORS = [
   'from-cyan-500 to-blue-600','from-purple-500 to-indigo-600','from-emerald-500 to-teal-600',
   'from-orange-500 to-red-600','from-pink-500 to-rose-600','from-yellow-400 to-orange-500',
 ]
+const DEFAULT_EMOJIS = ['🏆','🥇','🎁','💎','🎀','🌟','🎊','🏅','💰','🎯']
+const EMOJI_PICKER   = ['🏆','🥇','🥈','🥉','🎁','💎','🎀','🌟','🎊','🏅','💰','🎯','🎮','🎵','🍕','☕','🌈','❤️','🔥','⚡','🎂','🛍️','✈️','📱','💻','🎓','🐉','🦄','🍀','🎪']
+
+// ─── Emoji particle burst (lucky draw background) ─────────────────────────────
+const DRAW_EMOJIS = ['🎰','🎲','⭐','✨','🎊','🎉','🌟','💫','🔥','⚡','🎯','🏆','🥇','🎁','💎','🎀','🌈','💰','🍀','🦄']
+
+function EmojiParticles() {
+  const [particles, setParticles] = useState([])
+  const idRef = useRef(0)
+
+  useEffect(() => {
+    const spawn = () => {
+      const id = idRef.current++
+      const duration = 900 + Math.floor(Math.random() * 500)
+      setParticles(prev => [...prev.slice(-30), {
+        id,
+        emoji:    DRAW_EMOJIS[Math.floor(Math.random() * DRAW_EMOJIS.length)],
+        x:        Math.random() * 100,
+        y:        Math.random() * 100,
+        size:     22 + Math.floor(Math.random() * 30),
+        duration,
+        rotate:   Math.floor(Math.random() * 60) - 30,
+      }])
+      setTimeout(() => setParticles(prev => prev.filter(p => p.id !== id)), duration + 50)
+    }
+    const timer = setInterval(spawn, 120)
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+      <style>{`
+        @keyframes emoji-pop {
+          0%   { transform: scale(0) rotate(var(--r)); opacity: 0; }
+          35%  { transform: scale(1.25) rotate(calc(var(--r) * -0.5)); opacity: 1; }
+          65%  { transform: scale(1) rotate(0deg); opacity: 0.75; }
+          100% { transform: scale(0.4) rotate(var(--r)); opacity: 0; }
+        }
+      `}</style>
+      {particles.map(p => (
+        <span key={p.id} style={{
+          position: 'absolute',
+          left: `${p.x}%`,
+          top:  `${p.y}%`,
+          fontSize: `${p.size}px`,
+          lineHeight: 1,
+          '--r': `${p.rotate}deg`,
+          animation: `emoji-pop ${p.duration}ms ease-out forwards`,
+          userSelect: 'none',
+        }}>
+          {p.emoji}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 function AnimatedBg() {
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-600/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
-      <div className="absolute top-1/3 left-1/4 w-72 h-72 bg-indigo-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }} />
-      <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(6,182,212,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(6,182,212,0.04) 1px,transparent 1px)', backgroundSize: '60px 60px' }} />
+      <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl animate-pulse"/>
+      <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-600/15 rounded-full blur-3xl animate-pulse" style={{animationDelay:'1.5s'}}/>
+      <div className="absolute top-1/3 left-1/4 w-72 h-72 bg-indigo-600/10 rounded-full blur-3xl animate-pulse" style={{animationDelay:'3s'}}/>
+      <div className="absolute inset-0 opacity-20" style={{backgroundImage:'linear-gradient(rgba(6,182,212,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(6,182,212,0.04) 1px,transparent 1px)',backgroundSize:'60px 60px'}}/>
     </div>
   )
 }
-function GlassCard({ children, className = '' }) {
+function GlassCard({ children, className='' }) {
   return <div className={`backdrop-blur-xl bg-white/[0.04] border border-white/[0.08] rounded-2xl ${className}`}>{children}</div>
 }
-function GlowButton({ children, onClick, disabled, variant = 'cyan', size = 'md', className = '' }) {
+function GlowButton({ children, onClick, disabled, variant='cyan', size='md', className='' }) {
   const v = {
     cyan:   'from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/30',
     purple: 'from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 shadow-purple-500/30',
     gold:   'from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 shadow-yellow-500/30',
     emerald:'from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 shadow-emerald-500/30',
   }
-  const s = { sm: 'px-4 py-2 text-sm', md: 'px-6 py-3', lg: 'px-8 py-4 text-lg' }
+  const s = { sm:'px-4 py-2 text-sm', md:'px-6 py-3', lg:'px-8 py-4 text-lg' }
   return (
     <button onClick={onClick} disabled={disabled}
       className={`relative font-semibold text-white rounded-xl ${s[size]} bg-gradient-to-r ${v[variant]} shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none ${className}`}>
@@ -61,25 +132,25 @@ function GlowButton({ children, onClick, disabled, variant = 'cyan', size = 'md'
     </button>
   )
 }
-function Logo({ size = 'md' }) {
-  const s = { sm: 'text-2xl', md: 'text-4xl', lg: 'text-6xl' }
+function Logo({ size='md' }) {
+  const s = { sm:'text-2xl', md:'text-4xl', lg:'text-6xl' }
   return (
     <div className="flex flex-col items-center gap-1.5">
       <div className={`font-black tracking-tight ${s[size]}`}>
         <span className="text-white">Hello </span>
         <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">AI</span>
       </div>
-      <div className="h-0.5 w-12 bg-gradient-to-r from-cyan-400 to-purple-400 rounded-full" />
+      <div className="h-0.5 w-12 bg-gradient-to-r from-cyan-400 to-purple-400 rounded-full"/>
     </div>
   )
 }
-function Spinner({ size = 'md' }) {
-  const s = { sm: 'w-8 h-8', md: 'w-16 h-16', lg: 'w-24 h-24' }
+function Spinner({ size='md' }) {
+  const s = { sm:'w-8 h-8', md:'w-16 h-16', lg:'w-24 h-24' }
   return (
     <div className={`relative ${s[size]}`}>
-      <div className="absolute inset-0 rounded-full border-2 border-white/10" />
-      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-400 animate-spin" />
-      <div className="absolute inset-2 rounded-full border-2 border-transparent border-t-purple-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.75s' }} />
+      <div className="absolute inset-0 rounded-full border-2 border-white/10"/>
+      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-400 animate-spin"/>
+      <div className="absolute inset-2 rounded-full border-2 border-transparent border-t-purple-400 animate-spin" style={{animationDirection:'reverse',animationDuration:'0.75s'}}/>
     </div>
   )
 }
@@ -87,31 +158,33 @@ function Spinner({ size = 'md' }) {
 // ─── Welcome ──────────────────────────────────────────────────────────────────
 function WelcomeScreen({ onHost, onParticipant, onLuckyDraw, onQR }) {
   const cards = [
-    { icon: '🎯', label: 'Group Randomizer — Host',        sub: 'Create a room & manage groups',          color: 'cyan',   onClick: onHost        },
-    { icon: '👥', label: 'Group Randomizer — Participant', sub: 'Join a room by entering the room code',  color: 'purple', onClick: onParticipant },
-    { icon: '🎰', label: 'Lucky Draw',                     sub: 'Add participants & prizes, then draw!',  color: 'gold',   onClick: onLuckyDraw   },
-    { icon: '🔗', label: 'QR Code Generator',              sub: 'Turn any link into a scannable QR code', color: 'emerald',onClick: onQR          },
+    { icon:'🎯', label:'Group Randomizer — Host',        sub:'Create a room & manage groups',          color:'cyan',    onClick:onHost        },
+    { icon:'👥', label:'Group Randomizer — Participant', sub:'Join a room by entering the room code',  color:'purple',  onClick:onParticipant },
+    { icon:'🎰', label:'Lucky Draw',                     sub:'Add participants & prizes, then draw!',  color:'gold',    onClick:onLuckyDraw   },
+    { icon:'🔗', label:'QR Code Generator',              sub:'Turn any link into a scannable QR code', color:'emerald', onClick:onQR          },
   ]
-  const palette = { cyan: 'from-cyan-500/10 to-blue-600/10 hover:from-cyan-500/20 hover:to-blue-600/20 border-cyan-500/20 hover:border-cyan-400/40 text-cyan-500 hover:text-cyan-300', purple: 'from-purple-500/10 to-indigo-600/10 hover:from-purple-500/20 hover:to-indigo-600/20 border-purple-500/20 hover:border-purple-400/40 text-purple-500 hover:text-purple-300', gold: 'from-yellow-500/10 to-orange-600/10 hover:from-yellow-500/20 hover:to-orange-600/20 border-yellow-500/20 hover:border-yellow-400/40 text-yellow-500 hover:text-yellow-300', emerald: 'from-emerald-500/10 to-teal-600/10 hover:from-emerald-500/20 hover:to-teal-600/20 border-emerald-500/20 hover:border-emerald-400/40 text-emerald-500 hover:text-emerald-300' }
+  const palette = {
+    cyan:   'from-cyan-500/10 to-blue-600/10 hover:from-cyan-500/20 hover:to-blue-600/20 border-cyan-500/20 hover:border-cyan-400/40',
+    purple: 'from-purple-500/10 to-indigo-600/10 hover:from-purple-500/20 hover:to-indigo-600/20 border-purple-500/20 hover:border-purple-400/40',
+    gold:   'from-yellow-500/10 to-orange-600/10 hover:from-yellow-500/20 hover:to-orange-600/20 border-yellow-500/20 hover:border-yellow-400/40',
+    emerald:'from-emerald-500/10 to-teal-600/10 hover:from-emerald-500/20 hover:to-teal-600/20 border-emerald-500/20 hover:border-emerald-400/40',
+  }
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6"><AnimatedBg />
+    <div className="min-h-screen flex flex-col items-center justify-center p-6"><AnimatedBg/>
       <div className="relative z-10 flex flex-col items-center gap-10 w-full max-w-md">
         <div className="text-center space-y-4">
-          <div className="text-7xl animate-bounce" style={{ animationDuration: '2s' }}>🤖</div>
-          <Logo size="lg" />
-          <p className="text-slate-400 text-base leading-relaxed">Real-time AI-powered tools<br />for events, workshops &amp; classrooms</p>
+          <div className="text-7xl animate-bounce" style={{animationDuration:'2s'}}>🤖</div>
+          <Logo size="lg"/>
+          <p className="text-slate-400 text-base leading-relaxed">Real-time AI-powered tools<br/>for events, workshops &amp; classrooms</p>
         </div>
         <div className="w-full space-y-3">
-          {cards.map(c => (
+          {cards.map(c=>(
             <GlassCard key={c.label} className="p-1">
               <button onClick={c.onClick} className={`w-full p-5 rounded-xl bg-gradient-to-r border transition-all duration-200 group ${palette[c.color]}`}>
                 <div className="flex items-center gap-4">
                   <div className="text-3xl">{c.icon}</div>
-                  <div className="text-left flex-1">
-                    <div className="text-white font-bold text-lg transition-colors">{c.label}</div>
-                    <div className="text-slate-500 text-sm">{c.sub}</div>
-                  </div>
-                  <div className="text-xl transition-colors">→</div>
+                  <div className="text-left flex-1"><div className="text-white font-bold text-lg">{c.label}</div><div className="text-slate-500 text-sm">{c.sub}</div></div>
+                  <div className="text-xl text-slate-500">→</div>
                 </div>
               </button>
             </GlassCard>
@@ -125,68 +198,31 @@ function WelcomeScreen({ onHost, onParticipant, onLuckyDraw, onQR }) {
 
 // ─── Host ─────────────────────────────────────────────────────────────────────
 function HostScreen({ onBack }) {
-  const [phase, setPhase] = useState('creating')
-  const [roomCode, setRoomCode] = useState('')
-  const [participants, setParticipants] = useState([])
-  const [numGroups, setNumGroups] = useState(2)
-  const [groups, setGroups] = useState(null)
-  const [randomizing, setRandomizing] = useState(false)
-  const socketRef = useRef(null)
-
-  useEffect(() => {
-    const s = getSocket(); socketRef.current = s
-    s.emit('create-room', (res) => { if (res.success) { setRoomCode(res.roomCode); setPhase('dashboard') } })
-    const onRoomUpdate = ({ participants, groups }) => { setParticipants(participants); setGroups(groups) }
-    const onGroupsRandomized = ({ groups }) => setGroups(groups)
-    s.on('room-update', onRoomUpdate); s.on('groups-randomized', onGroupsRandomized)
-    return () => { s.off('room-update', onRoomUpdate); s.off('groups-randomized', onGroupsRandomized) }
-  }, [])
-
-  const handleRandomize = () => {
-    const s = socketRef.current; if (!s) return
-    setRandomizing(true)
-    s.emit('set-num-groups', { numGroups })
-    s.emit('randomize-groups', (res) => { setRandomizing(false); if (!res?.success) alert(res?.error || 'Failed') })
-  }
-  const handleReset = () => { setGroups(null); socketRef.current?.emit('reset-groups') }
-
-  if (phase === 'creating') return <div className="min-h-screen flex items-center justify-center"><AnimatedBg /><div className="relative z-10 text-center space-y-4"><Spinner size="lg" /><p className="text-slate-400 animate-pulse">Creating your room…</p></div></div>
-
+  const [phase,setPhase]=useState('creating'),[roomCode,setRoomCode]=useState(''),[participants,setParticipants]=useState([]),[numGroups,setNumGroups]=useState(2),[groups,setGroups]=useState(null),[randomizing,setRandomizing]=useState(false)
+  const socketRef=useRef(null)
+  useEffect(()=>{
+    const s=getSocket();socketRef.current=s
+    s.emit('create-room',res=>{ if(res.success){setRoomCode(res.roomCode);setPhase('dashboard')} })
+    const onRU=({participants,groups})=>{setParticipants(participants);setGroups(groups)}
+    const onGR=({groups})=>setGroups(groups)
+    s.on('room-update',onRU);s.on('groups-randomized',onGR)
+    return()=>{s.off('room-update',onRU);s.off('groups-randomized',onGR)}
+  },[])
+  const handleRandomize=()=>{ const s=socketRef.current;if(!s)return;setRandomizing(true);s.emit('set-num-groups',{numGroups});s.emit('randomize-groups',res=>{setRandomizing(false);if(!res?.success)alert(res?.error||'Failed')}) }
+  const handleReset=()=>{setGroups(null);socketRef.current?.emit('reset-groups')}
+  if(phase==='creating') return <div className="min-h-screen flex items-center justify-center"><AnimatedBg/><div className="relative z-10 text-center space-y-4"><Spinner size="lg"/><p className="text-slate-400 animate-pulse">Creating your room…</p></div></div>
   return (
-    <div className="min-h-screen p-4 md:p-6"><AnimatedBg />
+    <div className="min-h-screen p-4 md:p-6"><AnimatedBg/>
       <div className="relative z-10 max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <button onClick={onBack} className="text-slate-500 hover:text-white transition-colors text-sm">← Exit room</button>
-          <Logo size="sm" />
-          <div className="flex items-center gap-1.5 text-xs text-emerald-400"><span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />Live</div>
-        </div>
+        <div className="flex items-center justify-between mb-6"><button onClick={onBack} className="text-slate-500 hover:text-white transition-colors text-sm">← Exit room</button><Logo size="sm"/><div className="flex items-center gap-1.5 text-xs text-emerald-400"><span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"/>Live</div></div>
         <div className="grid md:grid-cols-5 gap-5">
           <div className="md:col-span-2 space-y-4">
-            <GlassCard className="p-6 text-center">
-              <p className="text-slate-500 text-xs uppercase tracking-widest mb-3">Room Code</p>
-              <div className="text-6xl font-black tracking-[0.3em] bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent py-4">{roomCode}</div>
-              <p className="text-slate-500 text-xs mt-1">Share this code with participants</p>
-            </GlassCard>
-            <GlassCard className="p-6">
-              <p className="text-slate-500 text-xs uppercase tracking-widest mb-4">Group Settings</p>
-              <div className="mb-5">
-                <p className="text-slate-300 text-sm mb-2.5">Number of groups</p>
-                <div className="flex gap-2 flex-wrap">{[2,3,4,5,6].map(n => <button key={n} onClick={() => setNumGroups(n)} className={`w-11 h-11 rounded-xl font-bold text-sm transition-all ${numGroups===n?'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30':'bg-white/5 border border-white/10 text-slate-400 hover:border-cyan-500/30 hover:text-white'}`}>{n}</button>)}</div>
-              </div>
-              {!groups ? (<><GlowButton onClick={handleRandomize} disabled={participants.length<2||randomizing} variant="cyan" size="lg" className="w-full">{randomizing?<span className="flex items-center justify-center gap-2"><Spinner size="sm"/>Randomizing…</span>:'🎲 Randomize Groups'}</GlowButton>{participants.length<2&&<p className="text-slate-600 text-xs text-center mt-2">Need at least 2 participants</p>}</>)
-              : <GlowButton onClick={handleReset} variant="purple" size="lg" className="w-full">🔄 Re-randomize</GlowButton>}
-            </GlassCard>
+            <GlassCard className="p-6 text-center"><p className="text-slate-500 text-xs uppercase tracking-widest mb-3">Room Code</p><div className="text-6xl font-black tracking-[0.3em] bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent py-4">{roomCode}</div><p className="text-slate-500 text-xs mt-1">Share this code with participants</p></GlassCard>
+            <GlassCard className="p-6"><p className="text-slate-500 text-xs uppercase tracking-widest mb-4">Group Settings</p><div className="mb-5"><p className="text-slate-300 text-sm mb-2.5">Number of groups</p><div className="flex gap-2 flex-wrap">{[2,3,4,5,6].map(n=><button key={n} onClick={()=>setNumGroups(n)} className={`w-11 h-11 rounded-xl font-bold text-sm transition-all ${numGroups===n?'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30':'bg-white/5 border border-white/10 text-slate-400 hover:border-cyan-500/30 hover:text-white'}`}>{n}</button>)}</div></div>{!groups?(<><GlowButton onClick={handleRandomize} disabled={participants.length<2||randomizing} variant="cyan" size="lg" className="w-full">{randomizing?<span className="flex items-center justify-center gap-2"><Spinner size="sm"/>Randomizing…</span>:'🎲 Randomize Groups'}</GlowButton>{participants.length<2&&<p className="text-slate-600 text-xs text-center mt-2">Need at least 2 participants</p>}</>):<GlowButton onClick={handleReset} variant="purple" size="lg" className="w-full">🔄 Re-randomize</GlowButton>}</GlassCard>
           </div>
           <div className="md:col-span-3 space-y-4">
-            {!groups && <GlassCard className="p-6">
-              <div className="flex items-center justify-between mb-4"><p className="text-slate-500 text-xs uppercase tracking-widest">Participants</p><span className="bg-cyan-500/15 border border-cyan-500/20 text-cyan-400 text-xs px-2.5 py-1 rounded-full">{participants.length} joined</span></div>
-              {participants.length===0?<div className="text-center py-10 space-y-3"><div className="text-5xl opacity-30">👥</div><p className="text-slate-500 text-sm">Waiting for participants…</p><div className="flex justify-center gap-1">{[0,1,2].map(i=><div key={i} className="w-1.5 h-1.5 bg-slate-600 rounded-full animate-bounce" style={{animationDelay:`${i*0.2}s`}}/>)}</div></div>
-              :<div className="space-y-2 max-h-80 overflow-y-auto pr-1">{participants.map((p,i)=><div key={p.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06]"><div className={`w-9 h-9 rounded-full bg-gradient-to-br ${AVATAR_COLORS[i%AVATAR_COLORS.length]} flex items-center justify-center text-sm font-bold text-white flex-shrink-0`}>{p.name[0]?.toUpperCase()}</div><span className="text-white text-sm font-medium">{p.name}</span><span className="ml-auto text-slate-700 text-xs font-mono">#{i+1}</span></div>)}</div>}
-            </GlassCard>}
-            {groups && <GlassCard className="p-6">
-              <div className="flex items-center justify-between mb-4"><p className="text-slate-500 text-xs uppercase tracking-widest">Groups</p><span className="text-xs text-emerald-400 flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"/>Sent to participants</span></div>
-              <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">{groups.map((group,gi)=>{const c=GROUP_COLORS[gi%GROUP_COLORS.length];return(<div key={gi} className={`p-4 rounded-xl bg-gradient-to-r ${c.bg} border ${c.border}`}><div className={`font-bold text-sm mb-2.5 flex items-center gap-2 ${c.label}`}><span className={`w-2 h-2 rounded-full bg-gradient-to-r ${c.badge}`}/>{group.name}<span className="text-slate-500 font-normal ml-auto">{group.members.length} members</span></div><div className="flex flex-wrap gap-1.5">{group.members.map(m=><span key={m.id} className="text-xs bg-white/10 border border-white/10 px-2.5 py-1 rounded-full text-white">{m.name}</span>)}</div></div>)})}</div>
-            </GlassCard>}
+            {!groups&&<GlassCard className="p-6"><div className="flex items-center justify-between mb-4"><p className="text-slate-500 text-xs uppercase tracking-widest">Participants</p><span className="bg-cyan-500/15 border border-cyan-500/20 text-cyan-400 text-xs px-2.5 py-1 rounded-full">{participants.length} joined</span></div>{participants.length===0?<div className="text-center py-10 space-y-3"><div className="text-5xl opacity-30">👥</div><p className="text-slate-500 text-sm">Waiting for participants…</p><div className="flex justify-center gap-1">{[0,1,2].map(i=><div key={i} className="w-1.5 h-1.5 bg-slate-600 rounded-full animate-bounce" style={{animationDelay:`${i*0.2}s`}}/>)}</div></div>:<div className="space-y-2 max-h-80 overflow-y-auto pr-1">{participants.map((p,i)=><div key={p.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06]"><div className={`w-9 h-9 rounded-full bg-gradient-to-br ${AVATAR_COLORS[i%AVATAR_COLORS.length]} flex items-center justify-center text-sm font-bold text-white flex-shrink-0`}>{p.name[0]?.toUpperCase()}</div><span className="text-white text-sm font-medium">{p.name}</span><span className="ml-auto text-slate-700 text-xs font-mono">#{i+1}</span></div>)}</div>}</GlassCard>}
+            {groups&&<GlassCard className="p-6"><div className="flex items-center justify-between mb-4"><p className="text-slate-500 text-xs uppercase tracking-widest">Groups</p><span className="text-xs text-emerald-400 flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"/>Sent to participants</span></div><div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">{groups.map((group,gi)=>{const c=GROUP_COLORS[gi%GROUP_COLORS.length];return(<div key={gi} className={`p-4 rounded-xl bg-gradient-to-r ${c.bg} border ${c.border}`}><div className={`font-bold text-sm mb-2.5 flex items-center gap-2 ${c.label}`}><span className={`w-2 h-2 rounded-full bg-gradient-to-r ${c.badge}`}/>{group.name}<span className="text-slate-500 font-normal ml-auto">{group.members.length} members</span></div><div className="flex flex-wrap gap-1.5">{group.members.map(m=><span key={m.id} className="text-xs bg-white/10 border border-white/10 px-2.5 py-1 rounded-full text-white">{m.name}</span>)}</div></div>)})}</div></GlassCard>}
           </div>
         </div>
       </div>
@@ -195,24 +231,21 @@ function HostScreen({ onBack }) {
 }
 
 // ─── Participant Join ──────────────────────────────────────────────────────────
-function ParticipantJoinScreen({ onBack, onJoined, initialCode = '' }) {
-  const [roomCode, setRoomCode] = useState(initialCode)
-  const [name, setName] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const handleJoin = () => {
-    if (!roomCode.trim()) return setError('Please enter a room code.')
-    if (!name.trim()) return setError('Please enter your name.')
-    setError(''); setLoading(true)
-    const s = getSocket()
-    s.emit('join-room', { roomCode: roomCode.toUpperCase().trim(), name: name.trim() }, (res) => {
+function ParticipantJoinScreen({ onBack, onJoined, initialCode='' }) {
+  const [roomCode,setRoomCode]=useState(initialCode),[name,setName]=useState(''),[error,setError]=useState(''),[loading,setLoading]=useState(false)
+  const handleJoin=()=>{
+    if(!roomCode.trim())return setError('Please enter a room code.')
+    if(!name.trim())return setError('Please enter your name.')
+    setError('');setLoading(true)
+    const s=getSocket()
+    s.emit('join-room',{roomCode:roomCode.toUpperCase().trim(),name:name.trim()},res=>{
       setLoading(false)
-      if (res.success) onJoined({ name: name.trim(), roomCode: roomCode.toUpperCase().trim(), socketId: s.id, initialGroups: res.groups??null, myGroupIndex: res.myGroupIndex??-1 })
-      else setError(res.error || 'Could not join room.')
+      if(res.success)onJoined({name:name.trim(),roomCode:roomCode.toUpperCase().trim(),socketId:s.id,initialGroups:res.groups??null,myGroupIndex:res.myGroupIndex??-1})
+      else setError(res.error||'Could not join room.')
     })
   }
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6"><AnimatedBg />
+    <div className="min-h-screen flex flex-col items-center justify-center p-6"><AnimatedBg/>
       <div className="relative z-10 w-full max-w-sm">
         <button onClick={onBack} className="text-slate-500 hover:text-white transition-colors text-sm flex items-center gap-1.5 mb-6">← Back</button>
         <GlassCard className="p-8">
@@ -231,16 +264,16 @@ function ParticipantJoinScreen({ onBack, onJoined, initialCode = '' }) {
 
 // ─── Participant Waiting ───────────────────────────────────────────────────────
 function ParticipantWaitingScreen({ name, roomCode, socketId, onGroupsAssigned }) {
-  const [dots, setDots] = useState(0)
-  useEffect(() => {
-    const s = getSocket()
-    const onGroupsRandomized = ({ groups }) => { const idx = groups.findIndex(g=>g.members.some(m=>m.id===socketId||m.name===name)); onGroupsAssigned({ groups, myGroupIndex: idx>=0?idx:0 }) }
-    s.on('groups-randomized', onGroupsRandomized); s.on('host-left', ()=>alert('The host has ended the session.'))
-    const timer = setInterval(()=>setDots(d=>(d+1)%4), 600)
-    return ()=>{ s.off('groups-randomized', onGroupsRandomized); clearInterval(timer) }
-  }, [name, socketId, onGroupsAssigned])
+  const [dots,setDots]=useState(0)
+  useEffect(()=>{
+    const s=getSocket()
+    const onGR=({groups})=>{ const idx=groups.findIndex(g=>g.members.some(m=>m.id===socketId||m.name===name));onGroupsAssigned({groups,myGroupIndex:idx>=0?idx:0}) }
+    s.on('groups-randomized',onGR);s.on('host-left',()=>alert('The host has ended the session.'))
+    const timer=setInterval(()=>setDots(d=>(d+1)%4),600)
+    return()=>{s.off('groups-randomized',onGR);clearInterval(timer)}
+  },[name,socketId,onGroupsAssigned])
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6"><AnimatedBg />
+    <div className="min-h-screen flex flex-col items-center justify-center p-6"><AnimatedBg/>
       <div className="relative z-10 w-full max-w-sm text-center">
         <GlassCard className="p-10">
           <div className="relative mx-auto w-28 h-28 mb-8">
@@ -262,11 +295,11 @@ function ParticipantWaitingScreen({ name, roomCode, socketId, onGroupsAssigned }
 
 // ─── Participant Result ────────────────────────────────────────────────────────
 function ParticipantResultScreen({ name, groups, myGroupIndex, onBack }) {
-  const myGroup = groups?.[myGroupIndex]; const c = GROUP_COLORS[myGroupIndex%GROUP_COLORS.length]
-  const [revealed, setRevealed] = useState(false)
-  useEffect(()=>{ const t=setTimeout(()=>setRevealed(true),300); return()=>clearTimeout(t) },[])
+  const myGroup=groups?.[myGroupIndex],c=GROUP_COLORS[myGroupIndex%GROUP_COLORS.length]
+  const [revealed,setRevealed]=useState(false)
+  useEffect(()=>{const t=setTimeout(()=>setRevealed(true),300);return()=>clearTimeout(t)},[])
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden"><AnimatedBg />
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden"><AnimatedBg/>
       <div className="fixed inset-0 pointer-events-none z-10 overflow-hidden">{Array.from({length:16},(_,i)=><div key={i} className="absolute w-2 h-2 rounded-full animate-bounce" style={{left:`${(i/16)*100}%`,top:`-${Math.random()*10+5}%`,backgroundColor:['#06b6d4','#8b5cf6','#10b981','#f59e0b','#ec4899','#6366f1'][i%6],animationDelay:`${i*0.08}s`,animationDuration:`${0.7+(i%3)*0.2}s`}}/>)}</div>
       <div className="relative z-20 w-full max-w-sm text-center">
         <GlassCard className={`p-8 transition-all duration-700 ${revealed?'opacity-100 translate-y-0':'opacity-0 translate-y-8'}`}>
@@ -282,94 +315,84 @@ function ParticipantResultScreen({ name, groups, myGroupIndex, onBack }) {
 }
 
 // ─── Lucky Draw ───────────────────────────────────────────────────────────────
-const DEFAULT_EMOJIS = ['🏆','🥇','🎁','💎','🎀','🌟','🎊','🏅','💰','🎯']
-const EMOJI_PICKER = ['🏆','🥇','🥈','🥉','🎁','💎','🎀','🌟','🎊','🏅','💰','🎯','🎮','🎵','🍕','☕','🌈','❤️','🔥','⚡','🎂','🛍️','✈️','📱','💻','🎓','🐉','🦄','🍀','🎪']
-
 function parseBulkNames(text) {
   return [...new Set(text.split(/[\n,;]+/).map(s=>s.trim()).filter(s=>s.length>0))]
 }
 
+const DEFAULT_PRIZES = [{ name:'', amount:1, emoji:'🏆' }]
+
 function LuckyDrawScreen({ onBack }) {
-  const [phase, setPhase] = useState('setup')
-  const [participants, setParticipants] = useState([])
-  const [prizes, setPrizes] = useState([{ name: '', amount: 1, emoji: '🏆' }])
-  const [inputMode, setInputMode] = useState('one')
-  const [nameInput, setNameInput] = useState('')
-  const [bulkInput, setBulkInput] = useState('')
-  const [bulkPreview, setBulkPreview] = useState([])
-  const [emojiPickerIdx, setEmojiPickerIdx] = useState(null)
-  const [drawingName, setDrawingName] = useState('')
-  const [currentPrizeIdx, setCurrentPrizeIdx] = useState(0)
-  const [results, setResults] = useState([])
-  const intervalRef = useRef(null)
+  const [phase,setPhase]=useState('setup')
 
-  useEffect(()=>{ setBulkPreview(parseBulkNames(bulkInput)) }, [bulkInput])
+  // ── Persisted state ──
+  const [participants, setParticipants] = useLocalStorage('helloai_ld_participants', [])
+  const [prizes,       setPrizes      ] = useLocalStorage('helloai_ld_prizes',      DEFAULT_PRIZES)
 
-  // Close emoji picker when clicking outside
-  useEffect(() => {
-    if (emojiPickerIdx === null) return
-    const handler = () => setEmojiPickerIdx(null)
-    setTimeout(() => document.addEventListener('click', handler), 0)
-    return () => document.removeEventListener('click', handler)
-  }, [emojiPickerIdx])
+  // ── Ephemeral state ──
+  const [inputMode,setInputMode]=useState('one')
+  const [nameInput,setNameInput]=useState('')
+  const [bulkInput,setBulkInput]=useState('')
+  const [bulkPreview,setBulkPreview]=useState([])
+  const [emojiPickerIdx,setEmojiPickerIdx]=useState(null)
+  const [drawingName,setDrawingName]=useState('')
+  const [currentPrizeIdx,setCurrentPrizeIdx]=useState(0)
+  const [results,setResults]=useState([])
+  const intervalRef=useRef(null)
+  const skipRef=useRef(false)
 
-  const buildPrizeQueue = (list) => {
-    const q = []
-    list.forEach((p, i) => { if (p.name.trim()) for (let j=0; j<Math.max(1,Number(p.amount)||1); j++) q.push({ name: p.name.trim(), emoji: p.emoji || DEFAULT_EMOJIS[i%DEFAULT_EMOJIS.length], index: i }) })
+  useEffect(()=>{setBulkPreview(parseBulkNames(bulkInput))},[bulkInput])
+  useEffect(()=>{
+    if(emojiPickerIdx===null)return
+    const h=()=>setEmojiPickerIdx(null)
+    setTimeout(()=>document.addEventListener('click',h),0)
+    return()=>document.removeEventListener('click',h)
+  },[emojiPickerIdx])
+
+  const buildPrizeQueue=(list)=>{
+    const q=[]
+    list.forEach((p,i)=>{ if(p.name.trim()) for(let j=0;j<Math.max(1,Number(p.amount)||1);j++) q.push({name:p.name.trim(),emoji:p.emoji||DEFAULT_EMOJIS[i%DEFAULT_EMOJIS.length],index:i}) })
     return q
   }
-  const totalPrizes = buildPrizeQueue(prizes).length
+  const totalPrizes=buildPrizeQueue(prizes).length
 
-  const addOne = () => { const t=nameInput.trim(); if(!t) return; setParticipants(p=>p.includes(t)?p:[...p,t]); setNameInput('') }
-  const addBulk = () => {
-    if (!bulkPreview.length) return
-    setParticipants(prev => { const ex=new Set(prev); return [...prev, ...bulkPreview.filter(n=>!ex.has(n))] })
-    setBulkInput('')
+  const addOne=()=>{ const t=nameInput.trim();if(!t)return;setParticipants(p=>p.includes(t)?p:[...p,t]);setNameInput('') }
+  const addBulk=()=>{ if(!bulkPreview.length)return;setParticipants(prev=>{const ex=new Set(prev);return[...prev,...bulkPreview.filter(n=>!ex.has(n))]});setBulkInput('') }
+  const removeParticipant=name=>setParticipants(p=>p.filter(x=>x!==name))
+  const clearAll=()=>setParticipants([])
+
+  const updatePrize=(i,field,value)=>setPrizes(p=>p.map((x,idx)=>idx===i?{...x,[field]:value}:x))
+  const addPrize=()=>setPrizes(p=>[...p,{name:'',amount:1,emoji:DEFAULT_EMOJIS[p.length%DEFAULT_EMOJIS.length]}])
+  const removePrize=i=>setPrizes(p=>p.filter((_,idx)=>idx!==i))
+
+  const startDraw=()=>{
+    const q=buildPrizeQueue(prizes);if(!q.length||!participants.length)return
+    skipRef.current=false
+    setResults([]);setCurrentPrizeIdx(0);doDraw([...participants],q,0,[])
   }
-  const removeParticipant = (name) => setParticipants(p=>p.filter(x=>x!==name))
-  const clearAll = () => setParticipants([])
-
-  const updatePrize = (i, field, value) => setPrizes(p=>p.map((x,idx)=>idx===i?{...x,[field]:value}:x))
-  const addPrize = () => setPrizes(p=>[...p,{ name:'', amount:1, emoji: DEFAULT_EMOJIS[p.length%DEFAULT_EMOJIS.length] }])
-  const removePrize = (i) => setPrizes(p=>p.filter((_,idx)=>idx!==i))
-
-  const startDraw = () => {
-    const q = buildPrizeQueue(prizes)
-    if (!q.length || !participants.length) return
-    setResults([]); setCurrentPrizeIdx(0)
-    doDraw([...participants], q, 0, [])
-  }
-
-  const doDraw = (pool, queue, idx, existing) => {
-    if (idx >= queue.length || pool.length === 0) { setPhase('result'); return }
-    setPhase('drawing'); setCurrentPrizeIdx(idx)
-    let tick = 0
-    intervalRef.current = setInterval(() => {
-      setDrawingName(pool[Math.floor(Math.random()*pool.length)])
-      tick++
-      if (tick >= 20) {
+  const handleSkip=()=>{ skipRef.current=true }
+  const doDraw=(pool,queue,idx,existing)=>{
+    if(idx>=queue.length||pool.length===0){setPhase('result');return}
+    setPhase('drawing');setCurrentPrizeIdx(idx);let tick=0;skipRef.current=false
+    intervalRef.current=setInterval(()=>{
+      setDrawingName(pool[Math.floor(Math.random()*pool.length)]);tick++
+      if(tick>=10||skipRef.current){
         clearInterval(intervalRef.current)
-        const wi = Math.floor(Math.random()*pool.length), winner = pool[wi]
-        const newPool = pool.filter((_,i)=>i!==wi)
-        const newResults = [...existing, { winner, prize: queue[idx] }]
-        setDrawingName(winner); setResults(newResults)
-        setTimeout(()=>doDraw(newPool, queue, idx+1, newResults), 1500)
+        const wi=Math.floor(Math.random()*pool.length),winner=pool[wi]
+        const newPool=pool.filter((_,i)=>i!==wi),newResults=[...existing,{winner,prize:queue[idx]}]
+        setDrawingName(winner);setResults(newResults);skipRef.current=false
+        setTimeout(()=>doDraw(newPool,queue,idx+1,newResults),1500)
       }
-    }, 50)
+    },50)
   }
-
-  useEffect(()=>()=>clearInterval(intervalRef.current), [])
-  const currentPrize = buildPrizeQueue(prizes)[currentPrizeIdx]
+  useEffect(()=>()=>clearInterval(intervalRef.current),[])
+  const currentPrize=buildPrizeQueue(prizes)[currentPrizeIdx]
 
   // ── Setup ──
-  if (phase === 'setup') return (
-    <div className="min-h-screen p-4 md:p-6"><AnimatedBg />
+  if(phase==='setup') return (
+    <div className="min-h-screen p-4 md:p-6"><AnimatedBg/>
       <div className="relative z-10 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <button onClick={onBack} className="text-slate-500 hover:text-white transition-colors text-sm">← Back</button>
-          <Logo size="sm"/><div className="text-2xl">🎰</div>
-        </div>
-        <div className="text-center mb-8"><h1 className="text-3xl font-black text-white mb-1">Lucky Draw</h1><p className="text-slate-500 text-sm">Add participants &amp; prizes, then start the draw!</p></div>
+        <div className="flex items-center justify-between mb-6"><button onClick={onBack} className="text-slate-500 hover:text-white transition-colors text-sm">← Back</button><Logo size="sm"/><div className="text-2xl">🎰</div></div>
+        <div className="text-center mb-8"><h1 className="text-3xl font-black text-white mb-1">Lucky Draw</h1><p className="text-slate-500 text-sm">Your participants and prizes are saved automatically 💾</p></div>
 
         <div className="grid md:grid-cols-2 gap-5">
           {/* Participants */}
@@ -387,38 +410,23 @@ function LuckyDrawScreen({ onBack }) {
               {bulkPreview.length>0&&<div className="px-3 py-2 rounded-xl bg-cyan-500/5 border border-cyan-500/15"><p className="text-cyan-400 text-xs mb-1.5">{bulkPreview.length} name{bulkPreview.length!==1?'s':''} detected:</p><p className="text-slate-400 text-xs leading-relaxed">{bulkPreview.slice(0,10).join(', ')}{bulkPreview.length>10?` +${bulkPreview.length-10} more`:''}</p></div>}
               <button onClick={addBulk} disabled={!bulkPreview.length} className="w-full py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-sm font-semibold">+ Add {bulkPreview.length>0?`${bulkPreview.length} participants`:'participants'}</button>
             </div>}
-            {participants.length===0?<div className="text-center py-8 text-slate-700 text-sm">No participants yet</div>
-            :<div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">{participants.map((name,i)=><div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05] group"><div className={`w-6 h-6 rounded-full bg-gradient-to-br ${AVATAR_COLORS[i%AVATAR_COLORS.length]} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>{name[0]?.toUpperCase()}</div><span className="text-white text-sm flex-1 truncate">{name}</span><span className="text-slate-700 text-xs font-mono flex-shrink-0">#{i+1}</span><button onClick={()=>removeParticipant(name)} className="text-slate-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-xs flex-shrink-0">✕</button></div>)}</div>}
+            {participants.length===0
+              ?<div className="text-center py-8 text-slate-700 text-sm">No participants yet</div>
+              :<div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">{participants.map((name,i)=><div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05] group"><div className={`w-6 h-6 rounded-full bg-gradient-to-br ${AVATAR_COLORS[i%AVATAR_COLORS.length]} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>{name[0]?.toUpperCase()}</div><span className="text-white text-sm flex-1 truncate">{name}</span><span className="text-slate-700 text-xs font-mono flex-shrink-0">#{i+1}</span><button onClick={()=>removeParticipant(name)} className="text-slate-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-xs flex-shrink-0">✕</button></div>)}</div>}
           </GlassCard>
 
           {/* Prizes */}
           <GlassCard className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-slate-400 text-xs uppercase tracking-widest">Prizes</p>
-              <span className="text-yellow-400 text-xs bg-yellow-500/10 border border-yellow-500/20 px-2.5 py-1 rounded-full">{totalPrizes} total</span>
-            </div>
+            <div className="flex items-center justify-between mb-4"><p className="text-slate-400 text-xs uppercase tracking-widest">Prizes</p><span className="text-yellow-400 text-xs bg-yellow-500/10 border border-yellow-500/20 px-2.5 py-1 rounded-full">{totalPrizes} total</span></div>
             <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1 mb-4">
-              {prizes.map((prize, i) => (
+              {prizes.map((prize,i)=>(
                 <div key={i} className="flex items-center gap-2">
-                  {/* Custom emoji button */}
                   <div className="relative flex-shrink-0">
-                    <button
-                      onClick={e=>{ e.stopPropagation(); setEmojiPickerIdx(emojiPickerIdx===i?null:i) }}
-                      className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 hover:border-yellow-500/40 transition-all text-xl flex items-center justify-center"
-                      title="Change emoji">
-                      {prize.emoji}
-                    </button>
-                    {emojiPickerIdx===i&&(
-                      <div onClick={e=>e.stopPropagation()} className="absolute left-0 top-11 z-50 p-2 rounded-xl bg-slate-900 border border-white/10 shadow-2xl grid grid-cols-6 gap-1 w-48">
-                        {EMOJI_PICKER.map(em=><button key={em} onClick={()=>{ updatePrize(i,'emoji',em); setEmojiPickerIdx(null) }} className="w-7 h-7 rounded-lg hover:bg-white/10 text-base flex items-center justify-center transition-all">{em}</button>)}
-                      </div>
-                    )}
+                    <button onClick={e=>{e.stopPropagation();setEmojiPickerIdx(emojiPickerIdx===i?null:i)}} className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 hover:border-yellow-500/40 transition-all text-xl flex items-center justify-center" title="Change emoji">{prize.emoji}</button>
+                    {emojiPickerIdx===i&&<div onClick={e=>e.stopPropagation()} className="absolute left-0 top-11 z-50 p-2 rounded-xl bg-slate-900 border border-white/10 shadow-2xl grid grid-cols-6 gap-1 w-48">{EMOJI_PICKER.map(em=><button key={em} onClick={()=>{updatePrize(i,'emoji',em);setEmojiPickerIdx(null)}} className="w-7 h-7 rounded-lg hover:bg-white/10 text-base flex items-center justify-center transition-all">{em}</button>)}</div>}
                   </div>
                   <input type="text" value={prize.name} onChange={e=>updatePrize(i,'name',e.target.value)} placeholder="Prize name…" className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-500/40 focus:outline-none text-white placeholder-slate-700 text-sm transition-all min-w-0"/>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className="text-slate-600 text-xs">×</span>
-                    <input type="number" value={prize.amount} min={1} max={99} onChange={e=>updatePrize(i,'amount',Math.max(1,parseInt(e.target.value)||1))} className="w-14 px-2 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-500/40 focus:outline-none text-white text-sm text-center transition-all"/>
-                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0"><span className="text-slate-600 text-xs">×</span><input type="number" value={prize.amount} min={1} max={99} onChange={e=>updatePrize(i,'amount',Math.max(1,parseInt(e.target.value)||1))} className="w-14 px-2 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-500/40 focus:outline-none text-white text-sm text-center transition-all"/></div>
                   {prizes.length>1&&<button onClick={()=>removePrize(i)} className="text-slate-700 hover:text-red-400 transition-colors text-xs flex-shrink-0">✕</button>}
                 </div>
               ))}
@@ -436,13 +444,9 @@ function LuckyDrawScreen({ onBack }) {
   )
 
   // ── Drawing ──
-  if (phase === 'drawing') return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden"><AnimatedBg />
-      <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center">
-        <div className="w-[500px] h-[500px] rounded-full border border-yellow-500/5 animate-spin" style={{animationDuration:'8s'}}/>
-        <div className="absolute w-[400px] h-[400px] rounded-full border border-orange-500/8 animate-spin" style={{animationDuration:'5s',animationDirection:'reverse'}}/>
-        <div className="absolute w-[300px] h-[300px] rounded-full border border-yellow-400/10 animate-spin" style={{animationDuration:'3s'}}/>
-      </div>
+  if(phase==='drawing') return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden"><AnimatedBg/>
+      <EmojiParticles/>
       <div className="relative z-10 w-full max-w-sm text-center space-y-8">
         {currentPrize&&<div className="space-y-1"><p className="text-slate-500 text-xs uppercase tracking-widest">Drawing for</p><div className="flex items-center justify-center gap-3"><span className="text-4xl">{currentPrize.emoji}</span><span className="text-white text-2xl font-bold">{currentPrize.name}</span></div><p className="text-slate-600 text-xs">Prize {currentPrizeIdx+1} of {buildPrizeQueue(prizes).length}</p></div>}
         <GlassCard className="p-8 border-yellow-500/20 relative overflow-hidden">
@@ -452,6 +456,11 @@ function LuckyDrawScreen({ onBack }) {
           <div className="relative z-20"><div className="text-6xl font-black tracking-tight py-4 min-h-[5rem] flex items-center justify-center"><span className="bg-gradient-to-r from-yellow-300 to-orange-400 bg-clip-text text-transparent" style={{filter:'drop-shadow(0 0 20px rgba(251,191,36,0.5))'}}>{drawingName||'…'}</span></div></div>
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-gradient-to-r from-transparent via-yellow-400/40 to-transparent z-30"/>
         </GlassCard>
+        {/* Skip button */}
+        <button onClick={handleSkip}
+          className="px-8 py-3 rounded-xl bg-white/[0.04] border border-white/10 hover:border-yellow-500/30 hover:text-yellow-400 text-slate-500 text-sm font-medium transition-all">
+          ⏭ Skip animation
+        </button>
         {results.length>0&&<div className="space-y-2"><p className="text-slate-600 text-xs uppercase tracking-widest">Previous winners</p>{results.slice(-3).map((r,i)=><div key={i} className="flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05]"><span className="text-slate-400 text-sm">{r.winner}</span><span className="text-yellow-400 text-sm font-medium flex items-center gap-1.5"><span>{r.prize.emoji}</span>{r.prize.name}</span></div>)}</div>}
       </div>
     </div>
@@ -459,7 +468,7 @@ function LuckyDrawScreen({ onBack }) {
 
   // ── Result ──
   return (
-    <div className="min-h-screen p-4 md:p-6 overflow-hidden"><AnimatedBg />
+    <div className="min-h-screen p-4 md:p-6 overflow-hidden"><AnimatedBg/>
       <div className="fixed inset-0 pointer-events-none z-10 overflow-hidden">{Array.from({length:30},(_,i)=><div key={i} className="absolute w-2 h-2 rounded-sm animate-bounce" style={{left:`${(i/30)*100}%`,top:`${-5-(i%5)*3}%`,backgroundColor:['#fbbf24','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#10b981'][i%6],animationDelay:`${(i*0.07)%1}s`,animationDuration:`${0.6+(i%4)*0.15}s`,transform:`rotate(${i*15}deg)`}}/>)}</div>
       <div className="relative z-20 max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6"><button onClick={()=>{setPhase('setup');setResults([])}} className="text-slate-500 hover:text-white transition-colors text-sm">← Draw again</button><Logo size="sm"/><button onClick={onBack} className="text-slate-500 hover:text-white transition-colors text-sm">Home</button></div>
@@ -473,119 +482,85 @@ function LuckyDrawScreen({ onBack }) {
 
 // ─── QR Code Generator ────────────────────────────────────────────────────────
 function QRGeneratorScreen({ onBack }) {
-  const [url, setUrl] = useState('')
-  const [label, setLabel] = useState('')
-  const [size, setSize] = useState(300)
-  const [qrUrl, setQrUrl] = useState('')
-  const [copied, setCopied] = useState(false)
+  // ── Persisted state ──
+  const [url,   setUrl  ] = useLocalStorage('helloai_qr_url',   '')
+  const [label, setLabel] = useLocalStorage('helloai_qr_label', '')
+  const [size,  setSize ] = useLocalStorage('helloai_qr_size',  300)
+
+  // ── Ephemeral state ──
+  const [qrUrl,      setQrUrl     ] = useState('')
+  const [copied,     setCopied    ] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const debounceRef = useRef(null)
 
-  // Auto-generate QR whenever url changes (debounced 600ms)
+  // Rebuild QR whenever persisted url or size changes
   useEffect(() => {
     clearTimeout(debounceRef.current)
     if (!url.trim()) { setQrUrl(''); return }
     debounceRef.current = setTimeout(() => {
-      const encoded = encodeURIComponent(url.trim())
-      setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encoded}&margin=10&color=000000&bgcolor=ffffff`)
+      setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url.trim())}&margin=10`)
     }, 600)
     return () => clearTimeout(debounceRef.current)
   }, [url, size])
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(url.trim()).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
-  }
-
-  const downloadQR = () => {
-    const a = document.createElement('a')
-    a.href = qrUrl
-    a.download = `qrcode-${label || 'link'}.png`
-    a.target = '_blank'
-    a.click()
-  }
-
+  const copyLink = () => { navigator.clipboard.writeText(url.trim()).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000)}) }
+  const downloadQR = () => { const a=document.createElement('a');a.href=qrUrl;a.download=`qrcode-${label||'link'}.png`;a.target='_blank';a.click() }
   const hasUrl = url.trim().length > 0
 
   return (
     <>
-      {/* Fullscreen overlay */}
       {fullscreen && qrUrl && (
-        <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-8 cursor-pointer" onClick={() => setFullscreen(false)}>
-          <img src={qrUrl} alt="QR Code" className="w-72 h-72 md:w-96 md:h-96" style={{ imageRendering: 'pixelated' }} />
-          {label && <p className="mt-6 text-slate-900 text-2xl font-bold text-center">{label}</p>}
-          {url && <p className="mt-2 text-slate-500 text-sm text-center max-w-sm break-all">{url}</p>}
+        <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-8 cursor-pointer" onClick={()=>setFullscreen(false)}>
+          <img src={qrUrl} alt="QR Code" className="w-72 h-72 md:w-96 md:h-96" style={{imageRendering:'pixelated'}}/>
+          {label&&<p className="mt-6 text-slate-900 text-2xl font-bold text-center">{label}</p>}
+          {url&&<p className="mt-2 text-slate-500 text-sm text-center max-w-sm break-all">{url}</p>}
           <p className="mt-8 text-slate-400 text-xs">Tap anywhere to close</p>
         </div>
       )}
 
-      <div className="min-h-screen p-4 md:p-6"><AnimatedBg />
+      <div className="min-h-screen p-4 md:p-6"><AnimatedBg/>
         <div className="relative z-10 max-w-3xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <button onClick={onBack} className="text-slate-500 hover:text-white transition-colors text-sm">← Back</button>
-            <Logo size="sm"/>
-            <div className="text-2xl">🔗</div>
-          </div>
-
+          <div className="flex items-center justify-between mb-6"><button onClick={onBack} className="text-slate-500 hover:text-white transition-colors text-sm">← Back</button><Logo size="sm"/><div className="text-2xl">🔗</div></div>
           <div className="text-center mb-8">
             <h1 className="text-3xl font-black text-white mb-1">QR Code Generator</h1>
-            <p className="text-slate-500 text-sm">Paste any link — your QR code generates instantly</p>
+            <p className="text-slate-500 text-sm">Your last link is saved automatically 💾</p>
           </div>
 
           <div className="grid md:grid-cols-5 gap-5">
-            {/* Left: inputs */}
+            {/* Inputs */}
             <div className="md:col-span-3 space-y-4">
               <GlassCard className="p-6 space-y-4">
                 <div>
                   <label className="text-slate-400 text-sm mb-1.5 block">Link / URL</label>
                   <div className="flex gap-2">
-                    <input
-                      type="url" value={url}
-                      onChange={e => setUrl(e.target.value)}
-                      placeholder="https://forms.google.com/…"
-                      className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 text-white placeholder-slate-700 text-sm transition-all"
-                    />
-                    {hasUrl && (
-                      <button onClick={copyLink} className={`px-4 py-3 rounded-xl border transition-all text-sm font-medium flex-shrink-0 ${copied ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-white/5 border-white/10 text-slate-400 hover:border-emerald-500/30 hover:text-emerald-400'}`}>
-                        {copied ? '✓ Copied' : 'Copy'}
-                      </button>
-                    )}
+                    <input type="url" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://forms.google.com/…"
+                      className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 text-white placeholder-slate-700 text-sm transition-all"/>
+                    {hasUrl&&<button onClick={copyLink} className={`px-4 py-3 rounded-xl border transition-all text-sm font-medium flex-shrink-0 ${copied?'bg-emerald-500/20 border-emerald-500/40 text-emerald-400':'bg-white/5 border-white/10 text-slate-400 hover:border-emerald-500/30 hover:text-emerald-400'}`}>{copied?'✓ Copied':'Copy'}</button>}
                   </div>
                 </div>
-
                 <div>
-                  <label className="text-slate-400 text-sm mb-1.5 block">Label <span className="text-slate-600">(optional — shown below QR)</span></label>
-                  <input
-                    type="text" value={label}
-                    onChange={e => setLabel(e.target.value)}
-                    placeholder="e.g. Post-event Evaluation Form"
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 text-white placeholder-slate-700 text-sm transition-all"
-                  />
+                  <label className="text-slate-400 text-sm mb-1.5 block">Label <span className="text-slate-600">(optional)</span></label>
+                  <input type="text" value={label} onChange={e=>setLabel(e.target.value)} placeholder="e.g. Post-event Evaluation Form"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 text-white placeholder-slate-700 text-sm transition-all"/>
                 </div>
-
                 <div>
                   <label className="text-slate-400 text-sm mb-2 block">QR Size</label>
                   <div className="flex gap-2">
-                    {[200,300,400,600].map(s => (
-                      <button key={s} onClick={() => setSize(s)}
-                        className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${size===s ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-300' : 'bg-white/5 border border-white/10 text-slate-500 hover:border-emerald-500/20 hover:text-slate-300'}`}>
-                        {s}px
-                      </button>
-                    ))}
+                    {[200,300,400,600].map(s=><button key={s} onClick={()=>setSize(s)} className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${size===s?'bg-emerald-500/20 border border-emerald-500/30 text-emerald-300':'bg-white/5 border border-white/10 text-slate-500 hover:border-emerald-500/20 hover:text-slate-300'}`}>{s}px</button>)}
                   </div>
                 </div>
               </GlassCard>
 
-              {/* Quick examples */}
               <GlassCard className="p-4">
                 <p className="text-slate-600 text-xs uppercase tracking-widest mb-3">Quick examples</p>
                 <div className="space-y-1.5">
                   {[
-                    { icon: '📋', label: 'Google Form', hint: 'https://forms.gle/…' },
-                    { icon: '🔗', label: 'Website link', hint: 'https://yoursite.com' },
-                    { icon: '📱', label: 'LINE / WhatsApp group', hint: 'https://line.me/ti/g/…' },
-                    { icon: '📁', label: 'Google Drive / Docs', hint: 'https://drive.google.com/…' },
-                  ].map(ex => (
-                    <button key={ex.label} onClick={() => setUrl(ex.hint)}
+                    {icon:'📋',label:'Google Form',         hint:'https://forms.gle/…'},
+                    {icon:'🔗',label:'Website link',        hint:'https://yoursite.com'},
+                    {icon:'📱',label:'LINE / WhatsApp group',hint:'https://line.me/ti/g/…'},
+                    {icon:'📁',label:'Google Drive / Docs', hint:'https://drive.google.com/…'},
+                  ].map(ex=>(
+                    <button key={ex.label} onClick={()=>setUrl(ex.hint)}
                       className="w-full flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-transparent hover:border-white/[0.08] transition-all text-left group">
                       <span className="text-lg">{ex.icon}</span>
                       <span className="text-slate-400 group-hover:text-slate-200 text-sm transition-colors flex-1">{ex.label}</span>
@@ -596,47 +571,30 @@ function QRGeneratorScreen({ onBack }) {
               </GlassCard>
             </div>
 
-            {/* Right: QR preview */}
+            {/* QR preview */}
             <div className="md:col-span-2">
               <GlassCard className="p-6 text-center sticky top-6">
                 {!hasUrl ? (
                   <div className="py-12 space-y-4">
-                    <div className="w-40 h-40 mx-auto rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center">
-                      <span className="text-5xl opacity-20">🔗</span>
-                    </div>
+                    <div className="w-40 h-40 mx-auto rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center"><span className="text-5xl opacity-20">🔗</span></div>
                     <p className="text-slate-600 text-sm">Enter a URL to generate your QR code</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="relative inline-block">
                       <div className="p-3 bg-white rounded-2xl shadow-lg shadow-black/30 inline-block">
-                        <img
-                          key={qrUrl}
-                          src={qrUrl}
-                          alt="QR Code"
-                          width={180} height={180}
-                          className="rounded-lg block"
-                          style={{ imageRendering: 'pixelated' }}
-                        />
+                        <img key={qrUrl} src={qrUrl} alt="QR Code" width={180} height={180} className="rounded-lg block" style={{imageRendering:'pixelated'}}/>
                       </div>
-                      {/* Corner accents */}
-                      <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-emerald-400 rounded-tl-lg" />
-                      <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-emerald-400 rounded-tr-lg" />
-                      <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-emerald-400 rounded-bl-lg" />
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-emerald-400 rounded-br-lg" />
+                      <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-emerald-400 rounded-tl-lg"/>
+                      <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-emerald-400 rounded-tr-lg"/>
+                      <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-emerald-400 rounded-bl-lg"/>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-emerald-400 rounded-br-lg"/>
                     </div>
-
-                    {label && <p className="text-white font-bold text-base leading-tight">{label}</p>}
-                    <p className="text-slate-600 text-xs break-all leading-relaxed">{url.length > 60 ? url.slice(0, 60) + '…' : url}</p>
-
+                    {label&&<p className="text-white font-bold text-base leading-tight">{label}</p>}
+                    <p className="text-slate-600 text-xs break-all leading-relaxed">{url.length>60?url.slice(0,60)+'…':url}</p>
                     <div className="flex flex-col gap-2 pt-2">
-                      <GlowButton onClick={() => setFullscreen(true)} variant="emerald" size="md" className="w-full">
-                        ⛶ Fullscreen / Project
-                      </GlowButton>
-                      <button onClick={downloadQR}
-                        className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-emerald-500/30 hover:text-emerald-400 text-slate-400 text-sm font-medium transition-all">
-                        ↓ Download PNG
-                      </button>
+                      <GlowButton onClick={()=>setFullscreen(true)} variant="emerald" size="md" className="w-full">⛶ Fullscreen / Project</GlowButton>
+                      <button onClick={downloadQR} className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-emerald-500/30 hover:text-emerald-400 text-slate-400 text-sm font-medium transition-all">↓ Download PNG</button>
                     </div>
                   </div>
                 )}
@@ -651,33 +609,20 @@ function QRGeneratorScreen({ onBack }) {
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [screen, setScreen] = useState('welcome')
-  const [participantData, setParticipantData] = useState(null)
-  const [groupData, setGroupData] = useState(null)
-  const [initialJoinCode, setInitialJoinCode] = useState('')
-
-  useEffect(() => {
-    const code = getJoinCodeFromURL()
-    if (code) { setInitialJoinCode(code.toUpperCase()); setScreen('participant-join'); clearJoinCodeFromURL() }
-  }, [])
-
-  const goHome = useCallback(() => { resetSocket(); setScreen('welcome'); setParticipantData(null); setGroupData(null); setInitialJoinCode('') }, [])
-  const handleParticipantJoined = useCallback((data) => {
-    setParticipantData(data)
-    if (data.initialGroups && data.myGroupIndex >= 0) { setGroupData({ groups: data.initialGroups, myGroupIndex: data.myGroupIndex }); setScreen('participant-result') }
-    else setScreen('participant-waiting')
-  }, [])
-  const handleGroupsAssigned = useCallback((data) => { setGroupData(data); setScreen('participant-result') }, [])
-
+  const [screen,setScreen]=useState('welcome'),[participantData,setParticipantData]=useState(null),[groupData,setGroupData]=useState(null),[initialJoinCode,setInitialJoinCode]=useState('')
+  useEffect(()=>{ const code=getJoinCodeFromURL();if(code){setInitialJoinCode(code.toUpperCase());setScreen('participant-join');clearJoinCodeFromURL()} },[])
+  const goHome=useCallback(()=>{resetSocket();setScreen('welcome');setParticipantData(null);setGroupData(null);setInitialJoinCode('')},[])
+  const handleParticipantJoined=useCallback(data=>{ setParticipantData(data);if(data.initialGroups&&data.myGroupIndex>=0){setGroupData({groups:data.initialGroups,myGroupIndex:data.myGroupIndex});setScreen('participant-result')}else setScreen('participant-waiting') },[])
+  const handleGroupsAssigned=useCallback(data=>{setGroupData(data);setScreen('participant-result')},[])
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      {screen==='welcome'        && <WelcomeScreen onHost={()=>setScreen('host')} onParticipant={()=>setScreen('participant-join')} onLuckyDraw={()=>setScreen('lucky-draw')} onQR={()=>setScreen('qr-generator')} />}
-      {screen==='host'           && <HostScreen onBack={goHome} />}
-      {screen==='participant-join'&&<ParticipantJoinScreen onBack={goHome} onJoined={handleParticipantJoined} initialCode={initialJoinCode} />}
-      {screen==='participant-waiting'&&participantData&&<ParticipantWaitingScreen name={participantData.name} roomCode={participantData.roomCode} socketId={participantData.socketId} onGroupsAssigned={handleGroupsAssigned} />}
-      {screen==='participant-result'&&participantData&&groupData&&<ParticipantResultScreen name={participantData.name} groups={groupData.groups} myGroupIndex={groupData.myGroupIndex} onBack={goHome} />}
-      {screen==='lucky-draw'     && <LuckyDrawScreen onBack={goHome} />}
-      {screen==='qr-generator'   && <QRGeneratorScreen onBack={goHome} />}
+      {screen==='welcome'           &&<WelcomeScreen onHost={()=>setScreen('host')} onParticipant={()=>setScreen('participant-join')} onLuckyDraw={()=>setScreen('lucky-draw')} onQR={()=>setScreen('qr-generator')}/>}
+      {screen==='host'              &&<HostScreen onBack={goHome}/>}
+      {screen==='participant-join'  &&<ParticipantJoinScreen onBack={goHome} onJoined={handleParticipantJoined} initialCode={initialJoinCode}/>}
+      {screen==='participant-waiting'&&participantData&&<ParticipantWaitingScreen name={participantData.name} roomCode={participantData.roomCode} socketId={participantData.socketId} onGroupsAssigned={handleGroupsAssigned}/>}
+      {screen==='participant-result' &&participantData&&groupData&&<ParticipantResultScreen name={participantData.name} groups={groupData.groups} myGroupIndex={groupData.myGroupIndex} onBack={goHome}/>}
+      {screen==='lucky-draw'        &&<LuckyDrawScreen onBack={goHome}/>}
+      {screen==='qr-generator'      &&<QRGeneratorScreen onBack={goHome}/>}
     </div>
   )
 }
