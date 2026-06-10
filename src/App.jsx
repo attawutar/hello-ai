@@ -45,7 +45,7 @@ const DEFAULT_EMOJIS = ['🏆','🥇','🎁','💎','🎀','🌟','🎊','🏅',
 const EMOJI_PICKER   = ['🏆','🥇','🥈','🥉','🎁','💎','🎀','🌟','🎊','🏅','💰','🎯','🎮','🎵','🍕','☕','🌈','❤️','🔥','⚡','🎂','🛍️','✈️','📱','💻','🎓','🐉','🦄','🍀','🎪']
 const DRAW_EMOJIS    = ['🎰','🎲','⭐','✨','🎊','🎉','🌟','💫','🔥','⚡','🎯','🏆','🥇','🎁','💎','🎀','🌈','💰','🍀','🦄']
 
-// ─── Emoji particles (lucky draw background) ──────────────────────────────────
+// ─── Emoji particles ──────────────────────────────────────────────────────────
 function EmojiParticles() {
   const [particles, setParticles] = useState([])
   const idRef = useRef(0)
@@ -300,12 +300,13 @@ function LuckyDrawScreen({ onBack }) {
   const [currentPrizeIdx,setCurrentPrizeIdx]=useState(0)
   const [results,        setResults       ] = useState([])
 
-  // ── Refs for skip-all ──
-  const intervalRef       = useRef(null)
-  const poolRef           = useRef([])
-  const queueRef          = useRef([])
-  const prizeIdxRef       = useRef(0)
-  const existingRef       = useRef([])
+  // ── Refs ──
+  const intervalRef    = useRef(null)
+  const cancelledRef   = useRef(false)   // guards stale doDraw setTimeout calls
+  const poolRef        = useRef([])
+  const queueRef       = useRef([])
+  const prizeIdxRef    = useRef(0)
+  const existingRef    = useRef([])
 
   useEffect(()=>{setBulkPreview(parseBulkNames(bulkInput))},[bulkInput])
   useEffect(()=>{
@@ -333,18 +334,22 @@ function LuckyDrawScreen({ onBack }) {
 
   const startDraw=()=>{
     const q=buildPrizeQueue(prizes);if(!q.length||!participants.length)return
+    cancelledRef.current=false   // reset any previous cancel
     setResults([]);setCurrentPrizeIdx(0)
     doDraw([...participants],q,0,[])
   }
 
   const doDraw=(pool,queue,idx,existing)=>{
+    // If skip-all was triggered, bail out immediately — do not overwrite result phase
+    if(cancelledRef.current) return
+
     if(idx>=queue.length||pool.length===0){setPhase('result');return}
 
     // Keep refs in sync so skip-all can read current state
-    poolRef.current     = pool
-    queueRef.current    = queue
-    prizeIdxRef.current = idx
-    existingRef.current = existing
+    poolRef.current    = pool
+    queueRef.current   = queue
+    prizeIdxRef.current= idx
+    existingRef.current= existing
 
     setPhase('drawing');setCurrentPrizeIdx(idx);let tick=0
     intervalRef.current=setInterval(()=>{
@@ -354,24 +359,26 @@ function LuckyDrawScreen({ onBack }) {
         const wi=Math.floor(Math.random()*pool.length),winner=pool[wi]
         const newPool=pool.filter((_,i)=>i!==wi),newResults=[...existing,{winner,prize:queue[idx]}]
         setDrawingName(winner);setResults(newResults)
+        // This setTimeout may fire after skip-all — doDraw checks cancelledRef at the top
         setTimeout(()=>doDraw(newPool,queue,idx+1,newResults),1500)
       }
     },50)
   }
 
-  // Skip ALL remaining — pick winners immediately for every pending prize
+  // Immediately assign winners to every remaining prize and jump to results
   const handleSkipAll=()=>{
+    cancelledRef.current=true          // stop any in-flight / pending doDraw calls
     clearInterval(intervalRef.current)
-    let pool  = [...poolRef.current]
-    const queue = queueRef.current
-    const startIdx = prizeIdxRef.current
-    let allResults = [...existingRef.current]
+
+    let pool      = [...poolRef.current]
+    const queue   = queueRef.current
+    const startIdx= prizeIdxRef.current
+    let allResults= [...existingRef.current]
 
     for(let i=startIdx; i<queue.length && pool.length>0; i++){
       const wi = Math.floor(Math.random()*pool.length)
-      const winner = pool[wi]
+      allResults = [...allResults, { winner:pool[wi], prize:queue[i] }]
       pool = pool.filter((_,j)=>j!==wi)
-      allResults = [...allResults, { winner, prize: queue[i] }]
     }
     setResults(allResults)
     setPhase('result')
@@ -460,13 +467,13 @@ function LuckyDrawScreen({ onBack }) {
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-gradient-to-r from-transparent via-yellow-400/40 to-transparent z-30"/>
         </GlassCard>
 
-        {/* Skip all → immediately resolve every remaining prize and show list */}
+        {/* Skip all */}
         <button onClick={handleSkipAll}
           className="w-full py-3 rounded-xl bg-white/[0.04] border border-white/10 hover:border-yellow-500/40 hover:text-yellow-300 text-slate-400 text-sm font-medium transition-all flex items-center justify-center gap-2">
           <span>⏭</span> Skip all &amp; show results
         </button>
 
-        {/* Already-drawn winners (this draw session) */}
+        {/* Already-drawn winners */}
         {results.length>0&&(
           <div className="space-y-2 text-left">
             <p className="text-slate-600 text-xs uppercase tracking-widest text-center">Winners so far</p>
