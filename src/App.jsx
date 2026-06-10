@@ -22,14 +22,9 @@ function clearJoinCodeFromURL() {
 // ─── Persistent state hook ────────────────────────────────────────────────────
 function useLocalStorage(key, defaultValue) {
   const [value, setValue] = useState(() => {
-    try {
-      const stored = localStorage.getItem(key)
-      return stored !== null ? JSON.parse(stored) : defaultValue
-    } catch { return defaultValue }
+    try { const s = localStorage.getItem(key); return s !== null ? JSON.parse(s) : defaultValue } catch { return defaultValue }
   })
-  useEffect(() => {
-    try { localStorage.setItem(key, JSON.stringify(value)) } catch {}
-  }, [key, value])
+  useEffect(() => { try { localStorage.setItem(key, JSON.stringify(value)) } catch {} }, [key, value])
   return [value, setValue]
 }
 
@@ -48,54 +43,33 @@ const AVATAR_COLORS = [
 ]
 const DEFAULT_EMOJIS = ['🏆','🥇','🎁','💎','🎀','🌟','🎊','🏅','💰','🎯']
 const EMOJI_PICKER   = ['🏆','🥇','🥈','🥉','🎁','💎','🎀','🌟','🎊','🏅','💰','🎯','🎮','🎵','🍕','☕','🌈','❤️','🔥','⚡','🎂','🛍️','✈️','📱','💻','🎓','🐉','🦄','🍀','🎪']
+const DRAW_EMOJIS    = ['🎰','🎲','⭐','✨','🎊','🎉','🌟','💫','🔥','⚡','🎯','🏆','🥇','🎁','💎','🎀','🌈','💰','🍀','🦄']
 
-// ─── Emoji particle burst (lucky draw background) ─────────────────────────────
-const DRAW_EMOJIS = ['🎰','🎲','⭐','✨','🎊','🎉','🌟','💫','🔥','⚡','🎯','🏆','🥇','🎁','💎','🎀','🌈','💰','🍀','🦄']
-
+// ─── Emoji particles (lucky draw background) ──────────────────────────────────
 function EmojiParticles() {
   const [particles, setParticles] = useState([])
   const idRef = useRef(0)
-
   useEffect(() => {
     const spawn = () => {
       const id = idRef.current++
       const duration = 900 + Math.floor(Math.random() * 500)
       setParticles(prev => [...prev.slice(-30), {
-        id,
-        emoji:    DRAW_EMOJIS[Math.floor(Math.random() * DRAW_EMOJIS.length)],
-        x:        Math.random() * 100,
-        y:        Math.random() * 100,
-        size:     22 + Math.floor(Math.random() * 30),
-        duration,
-        rotate:   Math.floor(Math.random() * 60) - 30,
+        id, duration,
+        emoji: DRAW_EMOJIS[Math.floor(Math.random() * DRAW_EMOJIS.length)],
+        x: Math.random() * 100, y: Math.random() * 100,
+        size: 22 + Math.floor(Math.random() * 30),
+        rotate: Math.floor(Math.random() * 60) - 30,
       }])
       setTimeout(() => setParticles(prev => prev.filter(p => p.id !== id)), duration + 50)
     }
     const timer = setInterval(spawn, 120)
     return () => clearInterval(timer)
   }, [])
-
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      <style>{`
-        @keyframes emoji-pop {
-          0%   { transform: scale(0) rotate(var(--r)); opacity: 0; }
-          35%  { transform: scale(1.25) rotate(calc(var(--r) * -0.5)); opacity: 1; }
-          65%  { transform: scale(1) rotate(0deg); opacity: 0.75; }
-          100% { transform: scale(0.4) rotate(var(--r)); opacity: 0; }
-        }
-      `}</style>
+      <style>{`@keyframes emoji-pop{0%{transform:scale(0) rotate(var(--r));opacity:0}35%{transform:scale(1.25) rotate(calc(var(--r)*-0.5));opacity:1}65%{transform:scale(1) rotate(0deg);opacity:.75}100%{transform:scale(.4) rotate(var(--r));opacity:0}}`}</style>
       {particles.map(p => (
-        <span key={p.id} style={{
-          position: 'absolute',
-          left: `${p.x}%`,
-          top:  `${p.y}%`,
-          fontSize: `${p.size}px`,
-          lineHeight: 1,
-          '--r': `${p.rotate}deg`,
-          animation: `emoji-pop ${p.duration}ms ease-out forwards`,
-          userSelect: 'none',
-        }}>
+        <span key={p.id} style={{ position:'absolute', left:`${p.x}%`, top:`${p.y}%`, fontSize:`${p.size}px`, lineHeight:1, '--r':`${p.rotate}deg`, animation:`emoji-pop ${p.duration}ms ease-out forwards`, userSelect:'none' }}>
           {p.emoji}
         </span>
       ))}
@@ -136,10 +110,7 @@ function Logo({ size='md' }) {
   const s = { sm:'text-2xl', md:'text-4xl', lg:'text-6xl' }
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div className={`font-black tracking-tight ${s[size]}`}>
-        <span className="text-white">Hello </span>
-        <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">AI</span>
-      </div>
+      <div className={`font-black tracking-tight ${s[size]}`}><span className="text-white">Hello </span><span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">AI</span></div>
       <div className="h-0.5 w-12 bg-gradient-to-r from-cyan-400 to-purple-400 rounded-full"/>
     </div>
   )
@@ -172,20 +143,12 @@ function WelcomeScreen({ onHost, onParticipant, onLuckyDraw, onQR }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6"><AnimatedBg/>
       <div className="relative z-10 flex flex-col items-center gap-10 w-full max-w-md">
-        <div className="text-center space-y-4">
-          <div className="text-7xl animate-bounce" style={{animationDuration:'2s'}}>🤖</div>
-          <Logo size="lg"/>
-          <p className="text-slate-400 text-base leading-relaxed">Real-time AI-powered tools<br/>for events, workshops &amp; classrooms</p>
-        </div>
+        <div className="text-center space-y-4"><div className="text-7xl animate-bounce" style={{animationDuration:'2s'}}>🤖</div><Logo size="lg"/><p className="text-slate-400 text-base leading-relaxed">Real-time AI-powered tools<br/>for events, workshops &amp; classrooms</p></div>
         <div className="w-full space-y-3">
           {cards.map(c=>(
             <GlassCard key={c.label} className="p-1">
               <button onClick={c.onClick} className={`w-full p-5 rounded-xl bg-gradient-to-r border transition-all duration-200 group ${palette[c.color]}`}>
-                <div className="flex items-center gap-4">
-                  <div className="text-3xl">{c.icon}</div>
-                  <div className="text-left flex-1"><div className="text-white font-bold text-lg">{c.label}</div><div className="text-slate-500 text-sm">{c.sub}</div></div>
-                  <div className="text-xl text-slate-500">→</div>
-                </div>
+                <div className="flex items-center gap-4"><div className="text-3xl">{c.icon}</div><div className="text-left flex-1"><div className="text-white font-bold text-lg">{c.label}</div><div className="text-slate-500 text-sm">{c.sub}</div></div><div className="text-xl text-slate-500">→</div></div>
               </button>
             </GlassCard>
           ))}
@@ -318,27 +281,31 @@ function ParticipantResultScreen({ name, groups, myGroupIndex, onBack }) {
 function parseBulkNames(text) {
   return [...new Set(text.split(/[\n,;]+/).map(s=>s.trim()).filter(s=>s.length>0))]
 }
-
 const DEFAULT_PRIZES = [{ name:'', amount:1, emoji:'🏆' }]
 
 function LuckyDrawScreen({ onBack }) {
-  const [phase,setPhase]=useState('setup')
+  const [phase, setPhase] = useState('setup')
 
-  // ── Persisted state ──
+  // ── Persisted ──
   const [participants, setParticipants] = useLocalStorage('helloai_ld_participants', [])
-  const [prizes,       setPrizes      ] = useLocalStorage('helloai_ld_prizes',      DEFAULT_PRIZES)
+  const [prizes,       setPrizes      ] = useLocalStorage('helloai_ld_prizes',       DEFAULT_PRIZES)
 
-  // ── Ephemeral state ──
-  const [inputMode,setInputMode]=useState('one')
-  const [nameInput,setNameInput]=useState('')
-  const [bulkInput,setBulkInput]=useState('')
-  const [bulkPreview,setBulkPreview]=useState([])
-  const [emojiPickerIdx,setEmojiPickerIdx]=useState(null)
-  const [drawingName,setDrawingName]=useState('')
+  // ── Ephemeral ──
+  const [inputMode,      setInputMode     ] = useState('one')
+  const [nameInput,      setNameInput     ] = useState('')
+  const [bulkInput,      setBulkInput     ] = useState('')
+  const [bulkPreview,    setBulkPreview   ] = useState([])
+  const [emojiPickerIdx, setEmojiPickerIdx] = useState(null)
+  const [drawingName,    setDrawingName   ] = useState('')
   const [currentPrizeIdx,setCurrentPrizeIdx]=useState(0)
-  const [results,setResults]=useState([])
-  const intervalRef=useRef(null)
-  const skipRef=useRef(false)
+  const [results,        setResults       ] = useState([])
+
+  // ── Refs for skip-all ──
+  const intervalRef       = useRef(null)
+  const poolRef           = useRef([])
+  const queueRef          = useRef([])
+  const prizeIdxRef       = useRef(0)
+  const existingRef       = useRef([])
 
   useEffect(()=>{setBulkPreview(parseBulkNames(bulkInput))},[bulkInput])
   useEffect(()=>{
@@ -353,7 +320,7 @@ function LuckyDrawScreen({ onBack }) {
     list.forEach((p,i)=>{ if(p.name.trim()) for(let j=0;j<Math.max(1,Number(p.amount)||1);j++) q.push({name:p.name.trim(),emoji:p.emoji||DEFAULT_EMOJIS[i%DEFAULT_EMOJIS.length],index:i}) })
     return q
   }
-  const totalPrizes=buildPrizeQueue(prizes).length
+  const totalPrizes = buildPrizeQueue(prizes).length
 
   const addOne=()=>{ const t=nameInput.trim();if(!t)return;setParticipants(p=>p.includes(t)?p:[...p,t]);setNameInput('') }
   const addBulk=()=>{ if(!bulkPreview.length)return;setParticipants(prev=>{const ex=new Set(prev);return[...prev,...bulkPreview.filter(n=>!ex.has(n))]});setBulkInput('') }
@@ -366,26 +333,52 @@ function LuckyDrawScreen({ onBack }) {
 
   const startDraw=()=>{
     const q=buildPrizeQueue(prizes);if(!q.length||!participants.length)return
-    skipRef.current=false
-    setResults([]);setCurrentPrizeIdx(0);doDraw([...participants],q,0,[])
+    setResults([]);setCurrentPrizeIdx(0)
+    doDraw([...participants],q,0,[])
   }
-  const handleSkip=()=>{ skipRef.current=true }
+
   const doDraw=(pool,queue,idx,existing)=>{
     if(idx>=queue.length||pool.length===0){setPhase('result');return}
-    setPhase('drawing');setCurrentPrizeIdx(idx);let tick=0;skipRef.current=false
+
+    // Keep refs in sync so skip-all can read current state
+    poolRef.current     = pool
+    queueRef.current    = queue
+    prizeIdxRef.current = idx
+    existingRef.current = existing
+
+    setPhase('drawing');setCurrentPrizeIdx(idx);let tick=0
     intervalRef.current=setInterval(()=>{
       setDrawingName(pool[Math.floor(Math.random()*pool.length)]);tick++
-      if(tick>=10||skipRef.current){
+      if(tick>=10){
         clearInterval(intervalRef.current)
         const wi=Math.floor(Math.random()*pool.length),winner=pool[wi]
         const newPool=pool.filter((_,i)=>i!==wi),newResults=[...existing,{winner,prize:queue[idx]}]
-        setDrawingName(winner);setResults(newResults);skipRef.current=false
+        setDrawingName(winner);setResults(newResults)
         setTimeout(()=>doDraw(newPool,queue,idx+1,newResults),1500)
       }
     },50)
   }
+
+  // Skip ALL remaining — pick winners immediately for every pending prize
+  const handleSkipAll=()=>{
+    clearInterval(intervalRef.current)
+    let pool  = [...poolRef.current]
+    const queue = queueRef.current
+    const startIdx = prizeIdxRef.current
+    let allResults = [...existingRef.current]
+
+    for(let i=startIdx; i<queue.length && pool.length>0; i++){
+      const wi = Math.floor(Math.random()*pool.length)
+      const winner = pool[wi]
+      pool = pool.filter((_,j)=>j!==wi)
+      allResults = [...allResults, { winner, prize: queue[i] }]
+    }
+    setResults(allResults)
+    setPhase('result')
+  }
+
   useEffect(()=>()=>clearInterval(intervalRef.current),[])
-  const currentPrize=buildPrizeQueue(prizes)[currentPrizeIdx]
+  const currentPrize = buildPrizeQueue(prizes)[currentPrizeIdx]
 
   // ── Setup ──
   if(phase==='setup') return (
@@ -397,10 +390,7 @@ function LuckyDrawScreen({ onBack }) {
         <div className="grid md:grid-cols-2 gap-5">
           {/* Participants */}
           <GlassCard className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-slate-400 text-xs uppercase tracking-widest">Participants</p>
-              <div className="flex items-center gap-2">{participants.length>0&&<button onClick={clearAll} className="text-slate-600 hover:text-red-400 text-xs transition-colors">Clear all</button>}<span className="text-cyan-400 text-xs bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full">{participants.length} added</span></div>
-            </div>
+            <div className="flex items-center justify-between mb-4"><p className="text-slate-400 text-xs uppercase tracking-widest">Participants</p><div className="flex items-center gap-2">{participants.length>0&&<button onClick={clearAll} className="text-slate-600 hover:text-red-400 text-xs transition-colors">Clear all</button>}<span className="text-cyan-400 text-xs bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full">{participants.length} added</span></div></div>
             <div className="flex gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/[0.06] mb-4">
               {['one','bulk'].map(m=><button key={m} onClick={()=>setInputMode(m)} className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${inputMode===m?'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30':'text-slate-500 hover:text-slate-300'}`}>{m==='one'?'✏️ One by one':'📋 Bulk paste'}</button>)}
             </div>
@@ -410,9 +400,8 @@ function LuckyDrawScreen({ onBack }) {
               {bulkPreview.length>0&&<div className="px-3 py-2 rounded-xl bg-cyan-500/5 border border-cyan-500/15"><p className="text-cyan-400 text-xs mb-1.5">{bulkPreview.length} name{bulkPreview.length!==1?'s':''} detected:</p><p className="text-slate-400 text-xs leading-relaxed">{bulkPreview.slice(0,10).join(', ')}{bulkPreview.length>10?` +${bulkPreview.length-10} more`:''}</p></div>}
               <button onClick={addBulk} disabled={!bulkPreview.length} className="w-full py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-sm font-semibold">+ Add {bulkPreview.length>0?`${bulkPreview.length} participants`:'participants'}</button>
             </div>}
-            {participants.length===0
-              ?<div className="text-center py-8 text-slate-700 text-sm">No participants yet</div>
-              :<div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">{participants.map((name,i)=><div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05] group"><div className={`w-6 h-6 rounded-full bg-gradient-to-br ${AVATAR_COLORS[i%AVATAR_COLORS.length]} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>{name[0]?.toUpperCase()}</div><span className="text-white text-sm flex-1 truncate">{name}</span><span className="text-slate-700 text-xs font-mono flex-shrink-0">#{i+1}</span><button onClick={()=>removeParticipant(name)} className="text-slate-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-xs flex-shrink-0">✕</button></div>)}</div>}
+            {participants.length===0?<div className="text-center py-8 text-slate-700 text-sm">No participants yet</div>
+            :<div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">{participants.map((name,i)=><div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05] group"><div className={`w-6 h-6 rounded-full bg-gradient-to-br ${AVATAR_COLORS[i%AVATAR_COLORS.length]} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>{name[0]?.toUpperCase()}</div><span className="text-white text-sm flex-1 truncate">{name}</span><span className="text-slate-700 text-xs font-mono flex-shrink-0">#{i+1}</span><button onClick={()=>removeParticipant(name)} className="text-slate-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-xs flex-shrink-0">✕</button></div>)}</div>}
           </GlassCard>
 
           {/* Prizes */}
@@ -447,21 +436,51 @@ function LuckyDrawScreen({ onBack }) {
   if(phase==='drawing') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden"><AnimatedBg/>
       <EmojiParticles/>
-      <div className="relative z-10 w-full max-w-sm text-center space-y-8">
-        {currentPrize&&<div className="space-y-1"><p className="text-slate-500 text-xs uppercase tracking-widest">Drawing for</p><div className="flex items-center justify-center gap-3"><span className="text-4xl">{currentPrize.emoji}</span><span className="text-white text-2xl font-bold">{currentPrize.name}</span></div><p className="text-slate-600 text-xs">Prize {currentPrizeIdx+1} of {buildPrizeQueue(prizes).length}</p></div>}
+      <div className="relative z-10 w-full max-w-sm text-center space-y-6">
+        {currentPrize&&(
+          <div className="space-y-1">
+            <p className="text-slate-500 text-xs uppercase tracking-widest">Drawing for</p>
+            <div className="flex items-center justify-center gap-3"><span className="text-4xl">{currentPrize.emoji}</span><span className="text-white text-2xl font-bold">{currentPrize.name}</span></div>
+            <p className="text-slate-600 text-xs">Prize {currentPrizeIdx+1} of {buildPrizeQueue(prizes).length}</p>
+          </div>
+        )}
+
+        {/* Name slot machine */}
         <GlassCard className="p-8 border-yellow-500/20 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/5 to-orange-500/5 animate-pulse"/>
           <div className="absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-slate-950/80 to-transparent z-10"/>
           <div className="absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-slate-950/80 to-transparent z-10"/>
-          <div className="relative z-20"><div className="text-6xl font-black tracking-tight py-4 min-h-[5rem] flex items-center justify-center"><span className="bg-gradient-to-r from-yellow-300 to-orange-400 bg-clip-text text-transparent" style={{filter:'drop-shadow(0 0 20px rgba(251,191,36,0.5))'}}>{drawingName||'…'}</span></div></div>
+          <div className="relative z-20">
+            <div className="text-6xl font-black tracking-tight py-4 min-h-[5rem] flex items-center justify-center">
+              <span className="bg-gradient-to-r from-yellow-300 to-orange-400 bg-clip-text text-transparent" style={{filter:'drop-shadow(0 0 20px rgba(251,191,36,0.5))'}}>
+                {drawingName||'…'}
+              </span>
+            </div>
+          </div>
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-gradient-to-r from-transparent via-yellow-400/40 to-transparent z-30"/>
         </GlassCard>
-        {/* Skip button */}
-        <button onClick={handleSkip}
-          className="px-8 py-3 rounded-xl bg-white/[0.04] border border-white/10 hover:border-yellow-500/30 hover:text-yellow-400 text-slate-500 text-sm font-medium transition-all">
-          ⏭ Skip animation
+
+        {/* Skip all → immediately resolve every remaining prize and show list */}
+        <button onClick={handleSkipAll}
+          className="w-full py-3 rounded-xl bg-white/[0.04] border border-white/10 hover:border-yellow-500/40 hover:text-yellow-300 text-slate-400 text-sm font-medium transition-all flex items-center justify-center gap-2">
+          <span>⏭</span> Skip all &amp; show results
         </button>
-        {results.length>0&&<div className="space-y-2"><p className="text-slate-600 text-xs uppercase tracking-widest">Previous winners</p>{results.slice(-3).map((r,i)=><div key={i} className="flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05]"><span className="text-slate-400 text-sm">{r.winner}</span><span className="text-yellow-400 text-sm font-medium flex items-center gap-1.5"><span>{r.prize.emoji}</span>{r.prize.name}</span></div>)}</div>}
+
+        {/* Already-drawn winners (this draw session) */}
+        {results.length>0&&(
+          <div className="space-y-2 text-left">
+            <p className="text-slate-600 text-xs uppercase tracking-widest text-center">Winners so far</p>
+            {results.map((r,i)=>(
+              <div key={i} className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                <div className="flex items-center gap-2">
+                  <span className={`w-5 h-5 rounded-full bg-gradient-to-br ${AVATAR_COLORS[i%AVATAR_COLORS.length]} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>{r.winner[0]?.toUpperCase()}</span>
+                  <span className="text-white text-sm">{r.winner}</span>
+                </div>
+                <span className="text-yellow-400 text-sm font-medium flex items-center gap-1.5 flex-shrink-0"><span>{r.prize.emoji}</span>{r.prize.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -482,18 +501,14 @@ function LuckyDrawScreen({ onBack }) {
 
 // ─── QR Code Generator ────────────────────────────────────────────────────────
 function QRGeneratorScreen({ onBack }) {
-  // ── Persisted state ──
   const [url,   setUrl  ] = useLocalStorage('helloai_qr_url',   '')
   const [label, setLabel] = useLocalStorage('helloai_qr_label', '')
   const [size,  setSize ] = useLocalStorage('helloai_qr_size',  300)
-
-  // ── Ephemeral state ──
   const [qrUrl,      setQrUrl     ] = useState('')
   const [copied,     setCopied    ] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const debounceRef = useRef(null)
 
-  // Rebuild QR whenever persisted url or size changes
   useEffect(() => {
     clearTimeout(debounceRef.current)
     if (!url.trim()) { setQrUrl(''); return }
@@ -509,7 +524,7 @@ function QRGeneratorScreen({ onBack }) {
 
   return (
     <>
-      {fullscreen && qrUrl && (
+      {fullscreen&&qrUrl&&(
         <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-8 cursor-pointer" onClick={()=>setFullscreen(false)}>
           <img src={qrUrl} alt="QR Code" className="w-72 h-72 md:w-96 md:h-96" style={{imageRendering:'pixelated'}}/>
           {label&&<p className="mt-6 text-slate-900 text-2xl font-bold text-center">{label}</p>}
@@ -517,78 +532,37 @@ function QRGeneratorScreen({ onBack }) {
           <p className="mt-8 text-slate-400 text-xs">Tap anywhere to close</p>
         </div>
       )}
-
       <div className="min-h-screen p-4 md:p-6"><AnimatedBg/>
         <div className="relative z-10 max-w-3xl mx-auto">
           <div className="flex items-center justify-between mb-6"><button onClick={onBack} className="text-slate-500 hover:text-white transition-colors text-sm">← Back</button><Logo size="sm"/><div className="text-2xl">🔗</div></div>
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-black text-white mb-1">QR Code Generator</h1>
-            <p className="text-slate-500 text-sm">Your last link is saved automatically 💾</p>
-          </div>
-
+          <div className="text-center mb-8"><h1 className="text-3xl font-black text-white mb-1">QR Code Generator</h1><p className="text-slate-500 text-sm">Your last link is saved automatically 💾</p></div>
           <div className="grid md:grid-cols-5 gap-5">
-            {/* Inputs */}
             <div className="md:col-span-3 space-y-4">
               <GlassCard className="p-6 space-y-4">
-                <div>
-                  <label className="text-slate-400 text-sm mb-1.5 block">Link / URL</label>
-                  <div className="flex gap-2">
-                    <input type="url" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://forms.google.com/…"
-                      className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 text-white placeholder-slate-700 text-sm transition-all"/>
-                    {hasUrl&&<button onClick={copyLink} className={`px-4 py-3 rounded-xl border transition-all text-sm font-medium flex-shrink-0 ${copied?'bg-emerald-500/20 border-emerald-500/40 text-emerald-400':'bg-white/5 border-white/10 text-slate-400 hover:border-emerald-500/30 hover:text-emerald-400'}`}>{copied?'✓ Copied':'Copy'}</button>}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-slate-400 text-sm mb-1.5 block">Label <span className="text-slate-600">(optional)</span></label>
-                  <input type="text" value={label} onChange={e=>setLabel(e.target.value)} placeholder="e.g. Post-event Evaluation Form"
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 text-white placeholder-slate-700 text-sm transition-all"/>
-                </div>
-                <div>
-                  <label className="text-slate-400 text-sm mb-2 block">QR Size</label>
-                  <div className="flex gap-2">
-                    {[200,300,400,600].map(s=><button key={s} onClick={()=>setSize(s)} className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${size===s?'bg-emerald-500/20 border border-emerald-500/30 text-emerald-300':'bg-white/5 border border-white/10 text-slate-500 hover:border-emerald-500/20 hover:text-slate-300'}`}>{s}px</button>)}
-                  </div>
-                </div>
+                <div><label className="text-slate-400 text-sm mb-1.5 block">Link / URL</label><div className="flex gap-2"><input type="url" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://forms.google.com/…" className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 text-white placeholder-slate-700 text-sm transition-all"/>{hasUrl&&<button onClick={copyLink} className={`px-4 py-3 rounded-xl border transition-all text-sm font-medium flex-shrink-0 ${copied?'bg-emerald-500/20 border-emerald-500/40 text-emerald-400':'bg-white/5 border-white/10 text-slate-400 hover:border-emerald-500/30 hover:text-emerald-400'}`}>{copied?'✓ Copied':'Copy'}</button>}</div></div>
+                <div><label className="text-slate-400 text-sm mb-1.5 block">Label <span className="text-slate-600">(optional)</span></label><input type="text" value={label} onChange={e=>setLabel(e.target.value)} placeholder="e.g. Post-event Evaluation Form" className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 text-white placeholder-slate-700 text-sm transition-all"/></div>
+                <div><label className="text-slate-400 text-sm mb-2 block">QR Size</label><div className="flex gap-2">{[200,300,400,600].map(s=><button key={s} onClick={()=>setSize(s)} className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${size===s?'bg-emerald-500/20 border border-emerald-500/30 text-emerald-300':'bg-white/5 border border-white/10 text-slate-500 hover:border-emerald-500/20 hover:text-slate-300'}`}>{s}px</button>)}</div></div>
               </GlassCard>
-
               <GlassCard className="p-4">
                 <p className="text-slate-600 text-xs uppercase tracking-widest mb-3">Quick examples</p>
                 <div className="space-y-1.5">
-                  {[
-                    {icon:'📋',label:'Google Form',         hint:'https://forms.gle/…'},
-                    {icon:'🔗',label:'Website link',        hint:'https://yoursite.com'},
-                    {icon:'📱',label:'LINE / WhatsApp group',hint:'https://line.me/ti/g/…'},
-                    {icon:'📁',label:'Google Drive / Docs', hint:'https://drive.google.com/…'},
-                  ].map(ex=>(
-                    <button key={ex.label} onClick={()=>setUrl(ex.hint)}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-transparent hover:border-white/[0.08] transition-all text-left group">
-                      <span className="text-lg">{ex.icon}</span>
-                      <span className="text-slate-400 group-hover:text-slate-200 text-sm transition-colors flex-1">{ex.label}</span>
-                      <span className="text-slate-700 text-xs font-mono truncate max-w-[140px]">{ex.hint}</span>
+                  {[{icon:'📋',label:'Google Form',hint:'https://forms.gle/…'},{icon:'🔗',label:'Website link',hint:'https://yoursite.com'},{icon:'📱',label:'LINE / WhatsApp group',hint:'https://line.me/ti/g/…'},{icon:'📁',label:'Google Drive / Docs',hint:'https://drive.google.com/…'}].map(ex=>(
+                    <button key={ex.label} onClick={()=>setUrl(ex.hint)} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-transparent hover:border-white/[0.08] transition-all text-left group">
+                      <span className="text-lg">{ex.icon}</span><span className="text-slate-400 group-hover:text-slate-200 text-sm transition-colors flex-1">{ex.label}</span><span className="text-slate-700 text-xs font-mono truncate max-w-[140px]">{ex.hint}</span>
                     </button>
                   ))}
                 </div>
               </GlassCard>
             </div>
-
-            {/* QR preview */}
             <div className="md:col-span-2">
               <GlassCard className="p-6 text-center sticky top-6">
-                {!hasUrl ? (
-                  <div className="py-12 space-y-4">
-                    <div className="w-40 h-40 mx-auto rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center"><span className="text-5xl opacity-20">🔗</span></div>
-                    <p className="text-slate-600 text-sm">Enter a URL to generate your QR code</p>
-                  </div>
-                ) : (
+                {!hasUrl?(
+                  <div className="py-12 space-y-4"><div className="w-40 h-40 mx-auto rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center"><span className="text-5xl opacity-20">🔗</span></div><p className="text-slate-600 text-sm">Enter a URL to generate your QR code</p></div>
+                ):(
                   <div className="space-y-4">
                     <div className="relative inline-block">
-                      <div className="p-3 bg-white rounded-2xl shadow-lg shadow-black/30 inline-block">
-                        <img key={qrUrl} src={qrUrl} alt="QR Code" width={180} height={180} className="rounded-lg block" style={{imageRendering:'pixelated'}}/>
-                      </div>
-                      <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-emerald-400 rounded-tl-lg"/>
-                      <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-emerald-400 rounded-tr-lg"/>
-                      <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-emerald-400 rounded-bl-lg"/>
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-emerald-400 rounded-br-lg"/>
+                      <div className="p-3 bg-white rounded-2xl shadow-lg shadow-black/30 inline-block"><img key={qrUrl} src={qrUrl} alt="QR Code" width={180} height={180} className="rounded-lg block" style={{imageRendering:'pixelated'}}/></div>
+                      <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-emerald-400 rounded-tl-lg"/><div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-emerald-400 rounded-tr-lg"/><div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-emerald-400 rounded-bl-lg"/><div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-emerald-400 rounded-br-lg"/>
                     </div>
                     {label&&<p className="text-white font-bold text-base leading-tight">{label}</p>}
                     <p className="text-slate-600 text-xs break-all leading-relaxed">{url.length>60?url.slice(0,60)+'…':url}</p>
@@ -616,13 +590,13 @@ export default function App() {
   const handleGroupsAssigned=useCallback(data=>{setGroupData(data);setScreen('participant-result')},[])
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      {screen==='welcome'           &&<WelcomeScreen onHost={()=>setScreen('host')} onParticipant={()=>setScreen('participant-join')} onLuckyDraw={()=>setScreen('lucky-draw')} onQR={()=>setScreen('qr-generator')}/>}
-      {screen==='host'              &&<HostScreen onBack={goHome}/>}
-      {screen==='participant-join'  &&<ParticipantJoinScreen onBack={goHome} onJoined={handleParticipantJoined} initialCode={initialJoinCode}/>}
+      {screen==='welcome'            &&<WelcomeScreen onHost={()=>setScreen('host')} onParticipant={()=>setScreen('participant-join')} onLuckyDraw={()=>setScreen('lucky-draw')} onQR={()=>setScreen('qr-generator')}/>}
+      {screen==='host'               &&<HostScreen onBack={goHome}/>}
+      {screen==='participant-join'   &&<ParticipantJoinScreen onBack={goHome} onJoined={handleParticipantJoined} initialCode={initialJoinCode}/>}
       {screen==='participant-waiting'&&participantData&&<ParticipantWaitingScreen name={participantData.name} roomCode={participantData.roomCode} socketId={participantData.socketId} onGroupsAssigned={handleGroupsAssigned}/>}
       {screen==='participant-result' &&participantData&&groupData&&<ParticipantResultScreen name={participantData.name} groups={groupData.groups} myGroupIndex={groupData.myGroupIndex} onBack={goHome}/>}
-      {screen==='lucky-draw'        &&<LuckyDrawScreen onBack={goHome}/>}
-      {screen==='qr-generator'      &&<QRGeneratorScreen onBack={goHome}/>}
+      {screen==='lucky-draw'         &&<LuckyDrawScreen onBack={goHome}/>}
+      {screen==='qr-generator'       &&<QRGeneratorScreen onBack={goHome}/>}
     </div>
   )
 }
