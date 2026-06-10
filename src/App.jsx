@@ -55,6 +55,8 @@ function GlowButton({ children, onClick, disabled, variant = 'cyan', size = 'md'
   const v = {
     cyan:   'from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/30',
     purple: 'from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 shadow-purple-500/30',
+    gold:   'from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 shadow-yellow-500/30',
+    red:    'from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 shadow-red-500/30',
   }
   const s = { sm: 'px-4 py-2 text-sm', md: 'px-6 py-3', lg: 'px-8 py-4 text-lg' }
   return (
@@ -91,7 +93,7 @@ function Spinner({ size = 'md' }) {
 }
 
 // ─── Welcome ──────────────────────────────────────────────────────────────────
-function WelcomeScreen({ onHost, onParticipant }) {
+function WelcomeScreen({ onHost, onParticipant, onLuckyDraw }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
       <AnimatedBg />
@@ -100,7 +102,7 @@ function WelcomeScreen({ onHost, onParticipant }) {
           <div className="text-7xl animate-bounce" style={{ animationDuration: '2s' }}>🤖</div>
           <Logo size="lg" />
           <p className="text-slate-400 text-base leading-relaxed">
-            Real-time AI-powered group randomizer<br />for events, workshops &amp; classrooms
+            Real-time AI-powered tools<br />for events, workshops &amp; classrooms
           </p>
         </div>
         <div className="w-full space-y-3">
@@ -110,7 +112,7 @@ function WelcomeScreen({ onHost, onParticipant }) {
               <div className="flex items-center gap-4">
                 <div className="text-3xl">🎯</div>
                 <div className="text-left flex-1">
-                  <div className="text-white font-bold text-lg group-hover:text-cyan-300 transition-colors">I am a Host</div>
+                  <div className="text-white font-bold text-lg group-hover:text-cyan-300 transition-colors">Group Randomizer — Host</div>
                   <div className="text-slate-500 text-sm">Create a room &amp; manage groups</div>
                 </div>
                 <div className="text-cyan-500 group-hover:text-cyan-300 text-xl">→</div>
@@ -123,10 +125,23 @@ function WelcomeScreen({ onHost, onParticipant }) {
               <div className="flex items-center gap-4">
                 <div className="text-3xl">👥</div>
                 <div className="text-left flex-1">
-                  <div className="text-white font-bold text-lg group-hover:text-purple-300 transition-colors">I am a Participant</div>
+                  <div className="text-white font-bold text-lg group-hover:text-purple-300 transition-colors">Group Randomizer — Participant</div>
                   <div className="text-slate-500 text-sm">Join a room by entering the room code</div>
                 </div>
                 <div className="text-purple-500 group-hover:text-purple-300 text-xl">→</div>
+              </div>
+            </button>
+          </GlassCard>
+          <GlassCard className="p-1">
+            <button onClick={onLuckyDraw}
+              className="w-full p-5 rounded-xl bg-gradient-to-r from-yellow-500/10 to-orange-600/10 hover:from-yellow-500/20 hover:to-orange-600/20 border border-yellow-500/20 hover:border-yellow-400/40 transition-all duration-200 group">
+              <div className="flex items-center gap-4">
+                <div className="text-3xl">🎰</div>
+                <div className="text-left flex-1">
+                  <div className="text-white font-bold text-lg group-hover:text-yellow-300 transition-colors">Lucky Draw</div>
+                  <div className="text-slate-500 text-sm">Add participants &amp; prizes, then draw!</div>
+                </div>
+                <div className="text-yellow-500 group-hover:text-yellow-300 text-xl">→</div>
               </div>
             </button>
           </GlassCard>
@@ -192,7 +207,6 @@ function HostScreen({ onBack }) {
 
         <div className="grid md:grid-cols-5 gap-5">
           <div className="md:col-span-2 space-y-4">
-            {/* Room Code — no QR */}
             <GlassCard className="p-6 text-center">
               <p className="text-slate-500 text-xs uppercase tracking-widest mb-3">Room Code</p>
               <div className="text-6xl font-black tracking-[0.3em] bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent py-4">
@@ -201,7 +215,6 @@ function HostScreen({ onBack }) {
               <p className="text-slate-500 text-xs mt-1">Share this code with participants</p>
             </GlassCard>
 
-            {/* Group controls */}
             <GlassCard className="p-6">
               <p className="text-slate-500 text-xs uppercase tracking-widest mb-4">Group Settings</p>
               <div className="mb-5">
@@ -311,13 +324,7 @@ function ParticipantJoinScreen({ onBack, onJoined, initialCode = '' }) {
     s.emit('join-room', { roomCode: roomCode.toUpperCase().trim(), name: name.trim() }, (res) => {
       setLoading(false)
       if (res.success) {
-        onJoined({
-          name: name.trim(),
-          roomCode: roomCode.toUpperCase().trim(),
-          socketId: s.id,
-          initialGroups: res.groups ?? null,
-          myGroupIndex: res.myGroupIndex ?? -1,
-        })
+        onJoined({ name: name.trim(), roomCode: roomCode.toUpperCase().trim(), socketId: s.id, initialGroups: res.groups ?? null, myGroupIndex: res.myGroupIndex ?? -1 })
       } else {
         setError(res.error || 'Could not join room.')
       }
@@ -337,30 +344,19 @@ function ParticipantJoinScreen({ onBack, onJoined, initialCode = '' }) {
           <div className="space-y-4">
             <div>
               <label className="text-slate-400 text-sm mb-1.5 block">Room Code</label>
-              <input
-                type="text"
-                value={roomCode}
+              <input type="text" value={roomCode}
                 onChange={e => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
-                placeholder="AB3X"
-                maxLength={4}
+                placeholder="AB3X" maxLength={4}
                 className="w-full px-4 py-4 rounded-xl bg-white/5 border border-white/10 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 text-white placeholder-slate-700 text-center text-3xl font-black tracking-[0.5em] uppercase transition-all"
-                onKeyDown={e => e.key === 'Enter' && handleJoin()}
-              />
+                onKeyDown={e => e.key === 'Enter' && handleJoin()} />
             </div>
             <div>
               <label className="text-slate-400 text-sm mb-1.5 block">Your Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="e.g. Alice"
+              <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Alice"
                 className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/30 text-white placeholder-slate-700 transition-all"
-                onKeyDown={e => e.key === 'Enter' && handleJoin()}
-              />
+                onKeyDown={e => e.key === 'Enter' && handleJoin()} />
             </div>
-            {error && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">⚠️ {error}</div>
-            )}
+            {error && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">⚠️ {error}</div>}
             <GlowButton onClick={handleJoin} disabled={loading} variant="purple" size="lg" className="w-full">
               {loading ? <span className="flex items-center justify-center gap-2"><Spinner size="sm" />Joining…</span> : '🚀 Join Room'}
             </GlowButton>
@@ -374,7 +370,6 @@ function ParticipantJoinScreen({ onBack, onJoined, initialCode = '' }) {
 // ─── Participant Waiting ───────────────────────────────────────────────────────
 function ParticipantWaitingScreen({ name, roomCode, socketId, onGroupsAssigned }) {
   const [dots, setDots] = useState(0)
-
   useEffect(() => {
     const s = getSocket()
     const onGroupsRandomized = ({ groups }) => {
@@ -409,9 +404,7 @@ function ParticipantWaitingScreen({ name, roomCode, socketId, onGroupsAssigned }
             <p className="text-white text-xl font-semibold">
               Hey <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">{name}</span>!
             </p>
-            <p className="text-slate-400 text-sm">
-              Waiting for the host to randomize groups{'.'.repeat(dots + 1)}
-            </p>
+            <p className="text-slate-400 text-sm">Waiting for the host to randomize groups{'.'.repeat(dots + 1)}</p>
           </div>
           <div className="mt-8 flex justify-center gap-2">
             {[0,1,2,3,4].map(i => (
@@ -440,11 +433,9 @@ function ParticipantResultScreen({ name, groups, myGroupIndex, onBack }) {
       <div className="fixed inset-0 pointer-events-none z-10 overflow-hidden">
         {Array.from({ length: 16 }, (_, i) => (
           <div key={i} className="absolute w-2 h-2 rounded-full animate-bounce" style={{
-            left: `${(i/16)*100}%`,
-            top: `-${Math.random()*10+5}%`,
+            left: `${(i/16)*100}%`, top: `-${Math.random()*10+5}%`,
             backgroundColor: ['#06b6d4','#8b5cf6','#10b981','#f59e0b','#ec4899','#6366f1'][i%6],
-            animationDelay: `${i*0.08}s`,
-            animationDuration: `${0.7+(i%3)*0.2}s`,
+            animationDelay: `${i*0.08}s`, animationDuration: `${0.7+(i%3)*0.2}s`,
           }} />
         ))}
       </div>
@@ -478,6 +469,323 @@ function ParticipantResultScreen({ name, groups, myGroupIndex, onBack }) {
   )
 }
 
+// ─── Lucky Draw ───────────────────────────────────────────────────────────────
+const PRIZE_EMOJIS = ['🏆','🥇','🎁','💎','🎀','🌟','🎊','🏅','💰','🎯']
+
+function LuckyDrawScreen({ onBack }) {
+  const [phase, setPhase] = useState('setup') // setup | drawing | result
+  const [participants, setParticipants] = useState([])
+  const [prizes, setPrizes] = useState([{ name: '', amount: 1 }])
+  const [nameInput, setNameInput] = useState('')
+  const [drawingName, setDrawingName] = useState('')
+  const [currentPrizeIdx, setCurrentPrizeIdx] = useState(0)
+  const [results, setResults] = useState([]) // [{winner, prize}]
+  const [remainingPool, setRemainingPool] = useState([])
+  const intervalRef = useRef(null)
+
+  // Build full prize list (each prize repeated by amount)
+  const buildPrizeQueue = (prizeList) => {
+    const queue = []
+    prizeList.forEach((p, i) => {
+      if (p.name.trim()) {
+        for (let j = 0; j < Math.max(1, Number(p.amount) || 1); j++) {
+          queue.push({ name: p.name.trim(), emoji: PRIZE_EMOJIS[i % PRIZE_EMOJIS.length], index: i })
+        }
+      }
+    })
+    return queue
+  }
+
+  const totalPrizes = buildPrizeQueue(prizes).length
+  const canDraw = participants.length > 0 && prizes.some(p => p.name.trim()) && remainingPool.length === 0
+    ? results.length === 0
+    : true
+
+  const addParticipant = () => {
+    const trimmed = nameInput.trim()
+    if (!trimmed) return
+    if (participants.includes(trimmed)) { setNameInput(''); return }
+    setParticipants(prev => [...prev, trimmed])
+    setNameInput('')
+  }
+
+  const removeParticipant = (name) => setParticipants(prev => prev.filter(p => p !== name))
+
+  const updatePrize = (i, field, value) => {
+    setPrizes(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: value } : p))
+  }
+  const addPrize = () => setPrizes(prev => [...prev, { name: '', amount: 1 }])
+  const removePrize = (i) => setPrizes(prev => prev.filter((_, idx) => idx !== i))
+
+  const startDraw = () => {
+    const prizeQueue = buildPrizeQueue(prizes)
+    if (prizeQueue.length === 0 || participants.length === 0) return
+    setResults([])
+    setRemainingPool([...participants])
+    setCurrentPrizeIdx(0)
+    doDraw([...participants], prizeQueue, 0, [])
+  }
+
+  const doDraw = (pool, prizeQueue, prizeIdx, existingResults) => {
+    if (prizeIdx >= prizeQueue.length || pool.length === 0) {
+      setPhase('result')
+      return
+    }
+    const currentPrize = prizeQueue[prizeIdx]
+    setPhase('drawing')
+    setCurrentPrizeIdx(prizeIdx)
+
+    // Slot machine animation — cycle through names fast for 1s
+    let tick = 0
+    const totalTicks = 20
+    intervalRef.current = setInterval(() => {
+      const randomName = pool[Math.floor(Math.random() * pool.length)]
+      setDrawingName(randomName)
+      tick++
+      if (tick >= totalTicks) {
+        clearInterval(intervalRef.current)
+        // Pick actual winner
+        const winnerIdx = Math.floor(Math.random() * pool.length)
+        const winner = pool[winnerIdx]
+        const newPool = pool.filter((_, i) => i !== winnerIdx)
+        const newResults = [...existingResults, { winner, prize: currentPrize }]
+        setDrawingName(winner)
+        setRemainingPool(newPool)
+        setResults(newResults)
+        // Pause 1.5s on winner before next draw
+        setTimeout(() => {
+          doDraw(newPool, prizeQueue, prizeIdx + 1, newResults)
+        }, 1500)
+      }
+    }, 50)
+  }
+
+  useEffect(() => () => clearInterval(intervalRef.current), [])
+
+  const currentPrize = buildPrizeQueue(prizes)[currentPrizeIdx]
+
+  // ── Setup phase ──
+  if (phase === 'setup') {
+    return (
+      <div className="min-h-screen p-4 md:p-6"><AnimatedBg />
+        <div className="relative z-10 max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <button onClick={onBack} className="text-slate-500 hover:text-white transition-colors text-sm">← Back</button>
+            <Logo size="sm" />
+            <div className="text-2xl">🎰</div>
+          </div>
+
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-black text-white mb-1">Lucky Draw</h1>
+            <p className="text-slate-500 text-sm">Add participants &amp; prizes, then start the draw!</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-5">
+            {/* Participants */}
+            <GlassCard className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-slate-400 text-xs uppercase tracking-widest">Participants</p>
+                <span className="text-cyan-400 text-xs bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full">{participants.length} added</span>
+              </div>
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="text" value={nameInput}
+                  onChange={e => setNameInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addParticipant()}
+                  placeholder="Enter name…"
+                  className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-cyan-500/40 focus:outline-none text-white placeholder-slate-700 text-sm transition-all"
+                />
+                <button onClick={addParticipant}
+                  className="px-4 py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 transition-all text-sm font-semibold">
+                  + Add
+                </button>
+              </div>
+              {participants.length === 0 ? (
+                <div className="text-center py-8 text-slate-700 text-sm">No participants yet</div>
+              ) : (
+                <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                  {participants.map((name, i) => (
+                    <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05] group">
+                      <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${AVATAR_COLORS[i % AVATAR_COLORS.length]} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
+                        {name[0]?.toUpperCase()}
+                      </div>
+                      <span className="text-white text-sm flex-1">{name}</span>
+                      <button onClick={() => removeParticipant(name)}
+                        className="text-slate-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-xs">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </GlassCard>
+
+            {/* Prizes */}
+            <GlassCard className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-slate-400 text-xs uppercase tracking-widest">Prizes</p>
+                <span className="text-yellow-400 text-xs bg-yellow-500/10 border border-yellow-500/20 px-2.5 py-1 rounded-full">{totalPrizes} total</span>
+              </div>
+              <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1 mb-4">
+                {prizes.map((prize, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xl w-7 text-center">{PRIZE_EMOJIS[i % PRIZE_EMOJIS.length]}</span>
+                    <input
+                      type="text" value={prize.name}
+                      onChange={e => updatePrize(i, 'name', e.target.value)}
+                      placeholder="Prize name…"
+                      className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-500/40 focus:outline-none text-white placeholder-slate-700 text-sm transition-all"
+                    />
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <span className="text-slate-600 text-xs">×</span>
+                      <input
+                        type="number" value={prize.amount} min={1} max={99}
+                        onChange={e => updatePrize(i, 'amount', Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-14 px-2 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-500/40 focus:outline-none text-white text-sm text-center transition-all"
+                      />
+                    </div>
+                    {prizes.length > 1 && (
+                      <button onClick={() => removePrize(i)} className="text-slate-700 hover:text-red-400 transition-colors text-xs">✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button onClick={addPrize}
+                className="w-full py-2 rounded-xl border border-dashed border-white/10 text-slate-600 hover:border-yellow-500/30 hover:text-yellow-400 transition-all text-sm">
+                + Add prize
+              </button>
+            </GlassCard>
+          </div>
+
+          {/* Start button */}
+          <div className="mt-6 text-center">
+            <GlowButton
+              onClick={startDraw}
+              disabled={participants.length === 0 || !prizes.some(p => p.name.trim())}
+              variant="gold" size="lg" className="px-16">
+              🎰 Start Lucky Draw
+            </GlowButton>
+            {participants.length === 0 && <p className="text-slate-600 text-xs mt-2">Add at least 1 participant</p>}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Drawing phase ──
+  if (phase === 'drawing') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden">
+        <AnimatedBg />
+        {/* Spinning rings */}
+        <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center">
+          <div className="w-[500px] h-[500px] rounded-full border border-yellow-500/5 animate-spin" style={{ animationDuration: '8s' }} />
+          <div className="absolute w-[400px] h-[400px] rounded-full border border-orange-500/8 animate-spin" style={{ animationDuration: '5s', animationDirection: 'reverse' }} />
+          <div className="absolute w-[300px] h-[300px] rounded-full border border-yellow-400/10 animate-spin" style={{ animationDuration: '3s' }} />
+        </div>
+
+        <div className="relative z-10 w-full max-w-sm text-center space-y-8">
+          {/* Prize being drawn */}
+          {currentPrize && (
+            <div className="space-y-1">
+              <p className="text-slate-500 text-xs uppercase tracking-widest">Drawing for</p>
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-4xl">{currentPrize.emoji}</span>
+                <span className="text-white text-2xl font-bold">{currentPrize.name}</span>
+              </div>
+              <p className="text-slate-600 text-xs">Prize {currentPrizeIdx + 1} of {buildPrizeQueue(prizes).length}</p>
+            </div>
+          )}
+
+          {/* Slot machine display */}
+          <GlassCard className="p-8 border-yellow-500/20 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/5 to-orange-500/5 animate-pulse" />
+            {/* Top/bottom fade masks */}
+            <div className="absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-slate-950/80 to-transparent z-10" />
+            <div className="absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-slate-950/80 to-transparent z-10" />
+
+            <div className="relative z-20">
+              <div className="text-6xl font-black tracking-tight py-4 min-h-[5rem] flex items-center justify-center">
+                <span className="bg-gradient-to-r from-yellow-300 to-orange-400 bg-clip-text text-transparent" style={{ filter: 'drop-shadow(0 0 20px rgba(251,191,36,0.5))' }}>
+                  {drawingName || '…'}
+                </span>
+              </div>
+            </div>
+
+            {/* Scan line */}
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-gradient-to-r from-transparent via-yellow-400/40 to-transparent z-30" />
+          </GlassCard>
+
+          {/* Previous results */}
+          {results.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-slate-600 text-xs uppercase tracking-widest">Previous winners</p>
+              {results.slice(-3).map((r, i) => (
+                <div key={i} className="flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                  <span className="text-slate-400 text-sm">{r.winner}</span>
+                  <span className="text-yellow-400 text-sm font-medium flex items-center gap-1.5"><span>{r.prize.emoji}</span>{r.prize.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Result phase ──
+  return (
+    <div className="min-h-screen p-4 md:p-6 overflow-hidden"><AnimatedBg />
+      {/* Confetti */}
+      <div className="fixed inset-0 pointer-events-none z-10 overflow-hidden">
+        {Array.from({ length: 30 }, (_, i) => (
+          <div key={i} className="absolute w-2 h-2 rounded-sm animate-bounce" style={{
+            left: `${(i/30)*100}%`, top: `${-5 - (i%5)*3}%`,
+            backgroundColor: ['#fbbf24','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#10b981'][i%6],
+            animationDelay: `${(i*0.07) % 1}s`, animationDuration: `${0.6+(i%4)*0.15}s`,
+            transform: `rotate(${i*15}deg)`,
+          }} />
+        ))}
+      </div>
+
+      <div className="relative z-20 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <button onClick={() => setPhase('setup')} className="text-slate-500 hover:text-white transition-colors text-sm">← Draw again</button>
+          <Logo size="sm" />
+          <button onClick={onBack} className="text-slate-500 hover:text-white transition-colors text-sm">Home</button>
+        </div>
+
+        <div className="text-center mb-8 space-y-2">
+          <div className="text-5xl animate-bounce" style={{ animationDuration: '1.5s' }}>🎉</div>
+          <h2 className="text-3xl font-black text-white">Draw Complete!</h2>
+          <p className="text-slate-500 text-sm">{results.length} winner{results.length !== 1 ? 's' : ''} selected</p>
+        </div>
+
+        <div className="space-y-3">
+          {results.map((r, i) => (
+            <GlassCard key={i} className="p-5 border-yellow-500/10">
+              <div className="flex items-center gap-4">
+                <div className="text-4xl">{r.prize.emoji}</div>
+                <div className="flex-1">
+                  <div className="text-yellow-300 font-bold text-lg">{r.prize.name}</div>
+                  <div className="text-slate-400 text-sm flex items-center gap-1.5 mt-0.5">
+                    <span className={`w-6 h-6 rounded-full bg-gradient-to-br ${AVATAR_COLORS[i % AVATAR_COLORS.length]} flex items-center justify-center text-xs font-bold text-white`}>{r.winner[0]?.toUpperCase()}</span>
+                    {r.winner}
+                  </div>
+                </div>
+                <div className="text-slate-700 font-mono text-sm">#{i+1}</div>
+              </div>
+            </GlassCard>
+          ))}
+        </div>
+
+        <div className="mt-8 flex justify-center gap-3">
+          <GlowButton onClick={() => { setPhase('setup'); setResults([]); setRemainingPool([]) }} variant="gold">🎰 Draw Again</GlowButton>
+          <GlowButton onClick={onBack} variant="purple">🏠 Home</GlowButton>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState('welcome')
@@ -487,59 +795,25 @@ export default function App() {
 
   useEffect(() => {
     const code = getJoinCodeFromURL()
-    if (code) {
-      setInitialJoinCode(code.toUpperCase())
-      setScreen('participant-join')
-      clearJoinCodeFromURL()
-    }
+    if (code) { setInitialJoinCode(code.toUpperCase()); setScreen('participant-join'); clearJoinCodeFromURL() }
   }, [])
 
-  const goHome = useCallback(() => {
-    resetSocket()
-    setScreen('welcome')
-    setParticipantData(null)
-    setGroupData(null)
-    setInitialJoinCode('')
-  }, [])
-
+  const goHome = useCallback(() => { resetSocket(); setScreen('welcome'); setParticipantData(null); setGroupData(null); setInitialJoinCode('') }, [])
   const handleParticipantJoined = useCallback((data) => {
     setParticipantData(data)
-    if (data.initialGroups && data.myGroupIndex >= 0) {
-      setGroupData({ groups: data.initialGroups, myGroupIndex: data.myGroupIndex })
-      setScreen('participant-result')
-    } else {
-      setScreen('participant-waiting')
-    }
+    if (data.initialGroups && data.myGroupIndex >= 0) { setGroupData({ groups: data.initialGroups, myGroupIndex: data.myGroupIndex }); setScreen('participant-result') }
+    else setScreen('participant-waiting')
   }, [])
-
-  const handleGroupsAssigned = useCallback((data) => {
-    setGroupData(data)
-    setScreen('participant-result')
-  }, [])
+  const handleGroupsAssigned = useCallback((data) => { setGroupData(data); setScreen('participant-result') }, [])
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      {screen === 'welcome' && <WelcomeScreen onHost={() => setScreen('host')} onParticipant={() => setScreen('participant-join')} />}
+      {screen === 'welcome' && <WelcomeScreen onHost={() => setScreen('host')} onParticipant={() => setScreen('participant-join')} onLuckyDraw={() => setScreen('lucky-draw')} />}
       {screen === 'host' && <HostScreen onBack={goHome} />}
-      {screen === 'participant-join' && (
-        <ParticipantJoinScreen onBack={goHome} onJoined={handleParticipantJoined} initialCode={initialJoinCode} />
-      )}
-      {screen === 'participant-waiting' && participantData && (
-        <ParticipantWaitingScreen
-          name={participantData.name}
-          roomCode={participantData.roomCode}
-          socketId={participantData.socketId}
-          onGroupsAssigned={handleGroupsAssigned}
-        />
-      )}
-      {screen === 'participant-result' && participantData && groupData && (
-        <ParticipantResultScreen
-          name={participantData.name}
-          groups={groupData.groups}
-          myGroupIndex={groupData.myGroupIndex}
-          onBack={goHome}
-        />
-      )}
+      {screen === 'participant-join' && <ParticipantJoinScreen onBack={goHome} onJoined={handleParticipantJoined} initialCode={initialJoinCode} />}
+      {screen === 'participant-waiting' && participantData && <ParticipantWaitingScreen name={participantData.name} roomCode={participantData.roomCode} socketId={participantData.socketId} onGroupsAssigned={handleGroupsAssigned} />}
+      {screen === 'participant-result' && participantData && groupData && <ParticipantResultScreen name={participantData.name} groups={groupData.groups} myGroupIndex={groupData.myGroupIndex} onBack={goHome} />}
+      {screen === 'lucky-draw' && <LuckyDrawScreen onBack={goHome} />}
     </div>
   )
 }
